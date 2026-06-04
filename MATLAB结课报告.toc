@@ -1,0 +1,29 @@
+\contentsline {section}{\numberline {1}引言}{3}{section.1}%
+\contentsline {section}{\numberline {2}最佳一致逼近}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}数学理论基础}{3}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}编程实验: 两个凸函数的最佳一致逼近一次多项式}{5}{subsection.2.2}%
+\contentsline {section}{\numberline {3}最佳平方逼近与正交多项式}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}数学理论基础}{7}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}最佳平方逼近理论}{7}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}正交多项式}{8}{subsubsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.2}Chebyshev 多项式逼近}{11}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Lagrange 插值余项与 Chebyshev 节点}{13}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Padé逼近 (Padé Approximation)}{15}{section.4}%
+\contentsline {subsection}{\numberline {4.1}数学理论基础}{15}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}编程实验: 几个初等函数的Padé逼近计算与图像对比}{17}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}逼近性能分析}{23}{subsection.4.3}%
+\contentsline {subsubsection}{\numberline {4.3.1}逼近阶数与局部收敛速度}{23}{subsubsection.4.3.1}%
+\contentsline {subsubsection}{\numberline {4.3.2}奇点模拟与有效范围的扩展}{23}{subsubsection.4.3.2}%
+\contentsline {subsubsection}{\numberline {4.3.3}无穷远处的渐近行为}{23}{subsubsection.4.3.3}%
+\contentsline {subsubsection}{\numberline {4.3.4}总结}{24}{subsubsection.4.3.4}%
+\contentsline {section}{\numberline {5}实验总结与分析}{24}{section.5}%
+\contentsline {section}{\numberline {6}不足与改进方向}{24}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Runge 现象的数值探究}{24}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Remez 算法的完整实现}{24}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}算法实现的通用性}{25}{subsection.6.3}%
+\contentsline {section}{\numberline {7}个人想法}{25}{section.7}%
+\contentsline {section}{\numberline {A}附录: MATLAB 程序代码}{26}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}最佳一致逼近实验}{26}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}最佳平方逼近实验：Chebyshev多项式}{29}{subsection.A.2}%
+\contentsline {subsection}{\numberline {A.3}Lagrange插值与Chebyshev节点实验}{31}{subsection.A.3}%
+\contentsline {subsection}{\numberline {A.4}有理逼近实验}{33}{subsection.A.4}%
