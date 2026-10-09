@@ -1,8 +1,16 @@
-# MathTranslations Agent Skill
+# MathTranslation Agent Skill
 
 一个平台无关的严谨数学翻译 Agent Skill。它把数学书籍、论文、讲义或已有
 LaTeX 项目翻译成可编译、可校对、可维护的中文 LaTeX，并支持复核与修复
-现有译稿。
+现有译稿。本技能是四个相关能力的统一集合：
+
+- **翻译与审校** —— 以出版 PDF 为内容权威，产出可编译、可核对的中文 LaTeX；
+- **编译与可视化验证** —— `xelatex + biber + texindy` 编译，并从渲染 PDF 层面
+  证明结果真确（非仅"无报错"）；
+- **硬编码引用转可点击交叉引用** —— `定理 3.4` / `(2.3)` / 索引页码等
+  纯文本引用转成 `\ref` / `\eqref` / `\hyperpage` 链接；
+- **模板迁移到 mathtranslation.cls v3.1** —— 旧 ctexart 模板迁移到
+  ctexbook 版 `mathtranslation.cls`，并做 pymupdf 回归审计。
 
 本 Skill 不绑定 Codex 或任何特定模型、厂商和 Agent 框架。任何能够读取
 Markdown 指令、访问项目文件并调用必要工具的 Agent 都可以使用。
@@ -23,6 +31,8 @@ MIT 许可的 LaTeX 模板与 logo。在线术语表仍保持外部引用，以�
 - 分离中文、数学、编译与版面三类校对
 - 用内置脚本检查重复标签、未定义引用、缺失资源、模板漂移、连续展示公式、
   全角弯引号、手动编号列表和编译日志
+- 把纯文本引用批量转成可点击交叉引用（mathtranslation.cls 与书籍类两条路径）
+- 把旧模板迁移到 `mathtranslation.cls` v3.1 并做编号回归审计
 
 ## Agent 兼容性
 
@@ -39,22 +49,22 @@ Agent 最好具备以下能力：
 
 ## 安装与调用
 
-将本仓库克隆到本地：
+将本仓库克隆到本地（仓库内 `agent-skills/mathtranslation` 即本技能目录）：
 
 ```bash
-git clone https://github.com/libinyam/mathtranslations-skill.git
+git clone https://github.com/VesperaZephyr/A-messy-repository.git
 ```
 
 然后选择适合当前 Agent 的方式：
 
-1. 将仓库复制到该 Agent 的 skills、rules 或 instructions 目录。
-2. 在 Agent 配置中将本仓库或 `SKILL.md` 注册为一个 skill。
-3. 在任务中直接要求 Agent 先读取本仓库的 `SKILL.md`。
+1. 将 `agent-skills/mathtranslation/` 复制到该 Agent 的 skills、rules 或 instructions 目录。
+2. 在 Agent 配置中将本目录或 `SKILL.md` 注册为一个 skill。
+3. 在任务中直接要求 Agent 先读取本目录的 `SKILL.md`。
 
 支持 skill 调用语法的 Agent 可以使用：
 
 ```text
-使用 $mathtranslations 把这篇数学论文翻译成中文 LaTeX，并编译校对。
+使用 $mathtranslation 把这篇数学论文翻译成中文 LaTeX，并编译校对。
 所有交换图、态射图和适合节点箭头表达的数学图必须使用 tikzcd 重绘，
 不得使用截图代替。
 ```
@@ -62,7 +72,7 @@ git clone https://github.com/libinyam/mathtranslations-skill.git
 不支持 `$skill-name` 语法的 Agent 可以使用：
 
 ```text
-请先读取 mathtranslations/SKILL.md，并严格按照其中的工作流，
+请先读取 mathtranslation/SKILL.md，并严格按照其中的工作流，
 把这篇数学论文翻译成中文 LaTeX，完成编译与校对。
 所有交换图、态射图和适合节点箭头表达的数学图必须使用 tikzcd 重绘。
 ```
@@ -70,7 +80,7 @@ git clone https://github.com/libinyam/mathtranslations-skill.git
 审校已有译本：
 
 ```text
-使用 $mathtranslations 对照原始 PDF 复核这个中文 LaTeX 项目，修复引用和排版问题。
+使用 $mathtranslation 对照原始 PDF 复核这个中文 LaTeX 项目，修复引用和排版问题。
 ```
 
 创建新译本时，只需向 Agent 提供原书 PDF、MinerU Markdown 以及提取的图片；
@@ -90,22 +100,45 @@ python scripts/audit_latex.py path/to/project --profile mathtranslations --stric
 环境、最终术语索引，以及 `mathtranslation.cls` 项目的 `\makecover`/
 `\makecontents`/`\makebibliography` 调用、biblatex 是否重复加载等。
 
+## 编译与验证
+
+```bash
+python scripts/build_and_check.py path/to/project
+```
+
+执行 `xelatex ×3`（含索引时 `xelatex → biber → xelatex → texindy → xelatex`，
+`texindy` 强制 C locale），统计所有错误模式，写入 `_build_report.txt` 并给出
+结论；任何计数非零则退出非零。
+
 ## 目录
 
 ```text
-mathtranslations/
+mathtranslation/
 ├── SKILL.md
+├── README.md
+├── LICENSE
+├── NOTICE.md
+├── .gitattributes
+├── .gitignore
 ├── agents/openai.yaml
 ├── assets/
 │   ├── mathtranslations-translation-template.tex
 │   └── logo.pdf
 ├── references/
+│   ├── workflow.md
 │   ├── latex-quality.md
 │   ├── mathtranslations-template.md
 │   ├── review-checklist.md
-│   └── workflow.md
-├── scripts/audit_latex.py
-└── tests/test_audit_latex.py
+│   ├── build-verify.md
+│   ├── hardref.md
+│   └── cls-v31-upgrade.md
+├── scripts/
+│   ├── audit_latex.py
+│   ├── build_and_check.py
+│   ├── convert_hardrefs.py
+│   └── convert_bare_refs.py
+└── tests/
+    └── test_audit_latex.py
 ```
 
 ## 来源与边界
