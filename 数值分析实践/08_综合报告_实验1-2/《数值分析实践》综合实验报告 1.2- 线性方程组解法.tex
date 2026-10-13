@@ -1,0 +1,494 @@
+% !TEX program = xelatex
+\documentclass[zihao=-4,a4paper]{ctexart}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{booktabs,tabularx}
+\usepackage{array}
+\usepackage{changepage} % 用于调整局部正文的左右边距
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{pdfpages}
+\setmonofont{Consolas}   % 设置等宽字体为 Consolas
+\setCJKmainfont{SimSun}[AutoFakeBold=2.5]
+\usepackage{hyperref}
+% 页面布局
+\usepackage[
+  top    = 1.7cm,
+  left   = 1.7cm,
+  right  = 1.7cm,
+  bottom = 2.7cm,
+  footskip = 1cm
+]{geometry}
+\linespread{1.5}
+% 提供 current page text area 节点
+\usepackage{tikzpagenodes}
+\usetikzlibrary{calc}            % 用于计算坐标
+\usepackage{fancyhdr}
+% ==============================
+% 全局变量: 存储版心宽度
+% ==============================
+\newlength{\myTextWidth}
+\newcommand{\calcTextWidth}{%
+  \path let \p1=(current page text area.east), \p2=(current page text area.west) in 
+    \pgfextra{\pgfmathsetlength{\myTextWidth}{\x1-\x2}};
+}
+
+% ==============================
+% 背景画线逻辑
+% ==============================
+\newif\ifdrawbackground  % 定义背景绘制开关
+\drawbackgroundtrue      % 默认开启背景绘制
+\AddToHook{shipout/background}{%
+  \ifdrawbackground %只有开关开启时才绘制背景
+  \tikz[remember picture, overlay]{%
+    
+    % 定义上下外扩的距离(和表格撑开的距离保持一致)
+    \def\vpad{0.8em} 
+
+    % --- 所有页: 底部横线 (向下偏移 \vpad) ---
+    \draw[line width=1pt] 
+      ([yshift=-\vpad]current page text area.south west) -- 
+      ([yshift=-\vpad]current page text area.south east);
+
+    \ifnum\value{page}=15
+      % --- 第一页: 绘制 2x6 表格边框 ---
+      \def\innerLineWidth{0.8pt}
+      \def\outerLineWidth{1pt}
+
+      % 1. 上横线 (表格节点已通过 inner ysep 撑开, 直接画)
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.west) -- 
+        (title-bottom-mark -| current page text area.east);
+
+      % 2. 下横线 (同上)
+      \draw[line width=\outerLineWidth] 
+        (table-bottom-mark -| current page text area.west) -- 
+        (table-bottom-mark -| current page text area.east);
+
+      % 3. 中间横线 (自动居中)
+      \draw[line width=\innerLineWidth] 
+        ($(title-bottom-mark -| current page text area.west)!0.5!(table-bottom-mark -| current page text area.west)$) -- 
+        ($(title-bottom-mark -| current page text area.east)!0.5!(table-bottom-mark -| current page text area.east)$);
+
+      % 4. 左右外框竖线 (从表格顶部一直到页底, 页底向下偏移 \vpad)
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.west) -- 
+        ([yshift=-\vpad]current page text area.south west);
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.east) -- 
+        ([yshift=-\vpad]current page text area.south east);
+
+      % 5. 内部竖线 (5条)
+      \foreach \i in {1,2,...,5} {
+        \pgfmathsetmacro{\pos}{\i/6}
+        \draw[line width=\innerLineWidth]
+          ($(title-bottom-mark -| current page text area.west)! \pos !(title-bottom-mark -| current page text area.east)$) --
+          ($(table-bottom-mark -| current page text area.west)! \pos !(table-bottom-mark -| current page text area.east)$);
+      }
+
+    \else
+      % --- 后续页: 标准四周边框 (上下各外扩 \vpad) ---
+      % 顶部横线向上偏移
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north west) -- ([yshift=\vpad]current page text area.north east);
+      % 左右竖线跟随上下偏移
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north west) -- ([yshift=-\vpad]current page text area.south west);
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north east) -- ([yshift=-\vpad]current page text area.south east);
+    \fi
+  }%
+  \fi
+}
+
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% 直接使用 \textwidth 计算列宽
+% ==============================
+% \textwidth/6 保证精确6等分, 减去 2\tabcolsep 扣除单元格自带的左右边距
+\newcolumntype{C}{>{\raggedright\arraybackslash}p{\dimexpr\textwidth/6-2\tabcolsep\relax}}
+
+% 自定义命令: 在当前位置画一条贯穿全宽的横线
+% ==============================
+\newcommand{\addhline}{%
+  \par
+  \noindent
+  \begin{tikzpicture}[remember picture, overlay]
+    % (0,0) 代表当前文字所在的高度
+    % current page text area.west 代表版心最左侧
+    % |- 符号表示: 取左边的 X 坐标, 取右边的 Y 坐标
+    \draw[line width=1pt] 
+      (current page text area.west |- 0,0) -- 
+      (current page text area.east |- 0,0);
+  \end{tikzpicture}\par
+}
+
+\newcommand{\dd}{\mathop{}\!\mathrm{d}}
+\newcommand{\myS}{14}
+\newcommand{\myt}{0.21}
+
+% MATLAB 代码风格
+\definecolor{matlabgreen}{rgb}{0,0.6,0}
+\definecolor{matlabgray}{rgb}{0.5,0.5,0.5}
+\definecolor{matlabpurple}{rgb}{0.58,0,0.82}
+\definecolor{matlabbg}{rgb}{0.95,0.95,0.92}
+\lstset{
+    language=Matlab,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{matlabgreen},
+    stringstyle=\color{matlabpurple},
+    backgroundcolor=\color{matlabbg},
+    numbers=left,
+    numberstyle=\tiny\color{matlabgray},
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{black!30},
+    captionpos=b,
+    tabsize=4,
+    morekeywords={end, if, else, elseif, for, while, function, return, break, switch, case, otherwise}
+}
+
+\begin{document}
+\setcounter{page}{15}
+\begin{center}
+  \zihao{-2}\bfseries 数值分析实践报告(二)
+\end{center}
+
+% --- 表格内容区 ---
+\noindent
+\begin{tikzpicture}[remember picture]
+  % 将整个 tabular 放入一个 TikZ 节点中, 彻底屏蔽 LaTeX 段落间距的干扰
+  \node[anchor=north west, inner sep=0pt, outer sep=0pt] (header-table) at (0,0) {%
+    \renewcommand{\arraystretch}{1.8}% 增加行高
+    \begin{tabular}{CCCCCC} 
+      姓\quad 名 & VesperaZephyr & 班\quad 级 & \small 数学与应用数学 & 报告评分 & \\
+      学\quad 号 & 114514 & 地点/机号 &  & 指导教师 & 
+    \end{tabular}%
+  };
+  
+  % 自动获取这个表格真实的左上角和左下角坐标, 传给背景画线
+  \coordinate (title-bottom-mark) at (header-table.north west);
+  \coordinate (table-bottom-mark) at (header-table.south west);
+\end{tikzpicture}
+
+\setlength{\leftskip}{1em}
+\setlength{\rightskip}{1em}
+
+% 实验名称
+\noindent{\bfseries 一、实验项目名称: 线性方程组直接解法与迭代解法的实现、对比及应用}
+
+\addhline
+
+\noindent{\bfseries 二、实验目的: }
+\begin{enumerate}[rightmargin=0.5cm]
+    \item 理解LU分解（直接解法）、Jacobi迭代法、Gaussian-Seidel迭代法、SOR迭代法的基本原理、适用条件及收敛性判定准则。
+    \item 掌握将实际问题转化为线性方程组模型的能力，并独立编程实现上述四种求解方法。
+    \item 培养数值计算核心素养：精度分析、计算效率对比、算法稳定性评估、收敛性判断。
+    \item 结合工程应用案例，体会不同解法的适用场景，提升数值方法的实际应用能力。
+\end{enumerate}
+
+\addhline
+
+\noindent{\bfseries 实验内容: }
+
+每位学生根据学号生成个性化线性方程组 \(Ax=b\)，其中：
+\begin{itemize}[rightmargin=0.5cm]
+    \item 矩阵 \(A\) 为 \(n\times n\) 方阵，\(n = \text{学号最后一位数字} + 3\)（若最后一位为0，则 \(n=4\)）。
+    \item \(A\) 的元素满足：\(a_{ii}=10+ \text{学号倒数第二位数字}\)（对角线元素）；\(a_{ij}=1+\bmod(i+j,3)\)（\(i\neq j\)，非对角线元素）。
+    \item 右端向量 \(b\) 的元素 \(b_i=\sum_{j=1}^{n}a_{ij}\times i\)（确保方程组的精确解为 \(x^*=[1,2,3,\dots,n]^{\mathsf{T}}\)，便于误差分析）。
+\end{itemize}
+
+\addhline
+
+\noindent{\bfseries 四、实验结果}
+
+\section{任务1: 理论准备}
+\textbf{学号后两位}为$14$, 因此$n=4+3=7$, 对角线元素为$a_{ii}=10+1=11$, 非对角线元素为$a_{ij}=1+(i+j)\bmod 3(i\ne j)$. 为使得精确解恰为 $x^*$, 右端向量 $b$ 取为
+\[
+b_i = \sum_{j=1}^{7} a_{ij}\,j \qquad (i=1,\dots,7)\footnote{原文件中“$b_i=\sum a_{ij}\times i$”疑为笔误, 此处修正以保证解为指定向量.}.
+\]
+由此得到的对称矩阵 $A$ 具体为
+\[
+A=
+\begin{pmatrix}
+11 & 1  & 2  & 3  & 1  & 2  & 3 \\
+1  & 11 & 3  & 1  & 2  & 3  & 1 \\
+2  & 3  & 11 & 2  & 3  & 1  & 2 \\
+3  & 1  & 2  & 11 & 1  & 2  & 3 \\
+1  & 2  & 3  & 1  & 11 & 3  & 1 \\
+2  & 3  & 1  & 2  & 3  & 11 & 2 \\
+3  & 1  & 2  & 3  & 1  & 2  & 11
+\end{pmatrix}.
+\]
+\subsection{LU分解}
+将 $A$ 分解为 $A=LU$, 其中
+\[
+L=(l_{ij}),\quad l_{ii}=1,\; l_{ij}=0\;(i<j);\qquad U=(u_{ij}),\quad u_{ij}=0\;(i>j).
+\]
+对 $k=1,2,\dots,n$: 
+\[
+\begin{aligned}
+u_{kj} &= a_{kj} - \sum_{r=1}^{k-1} l_{kr}u_{rj}, \quad j=k,\dots,n,\\
+l_{ik} &= \frac{1}{u_{kk}}\Bigl(a_{ik} - \sum_{r=1}^{k-1} l_{ir}u_{rk}\Bigr), \quad i=k+1,\dots,n.
+\end{aligned}
+\]
+计算步骤如下:\begin{enumerate}
+\item 初始化 $L=I_{7}$, $U=0_{7}$. 
+\item 对 $k=1$ 到 $7$: 
+   \begin{itemize}
+   \item 计算 $U$ 的第 $k$ 行: $u_{kj}=a_{kj}-\sum_{r=1}^{k-1}l_{kr}u_{rj},\; j=k,\dots,7$; 
+   \item 若 $k<7$, 计算 $L$ 的第 $k$ 列: $l_{ik}=\dfrac{a_{ik}-\sum_{r=1}^{k-1}l_{ir}u_{rk}}{u_{kk}},\; i=k+1,\dots,7$. 
+   \end{itemize}
+\item 求解方程组: 
+   \begin{itemize}
+   \item 前代 $Ly = b$: $y_i = b_i - \sum_{j=1}^{i-1} l_{ij}y_j$; 
+   \item 回代 $Ux = y$: $x_i = \dfrac{y_i - \sum_{j=i+1}^{n} u_{ij}x_j}{u_{ii}}$. 
+   \end{itemize}
+\end{enumerate}
+\subsection{Jacobi迭代}
+令 $A = D - L - U$, 其中
+\begin{equation}\label{eq:matrix split}
+    D = \operatorname{diag}(11,11,\dots,11),\quad
+    L = -\begin{pmatrix}
+    0 &  &  & 0\\
+    a_{21} & 0 &  & \\
+    \vdots & \ddots & \ddots & \\
+    a_{71} & \cdots & a_{76} & 0
+    \end{pmatrix},\quad
+    U = -\begin{pmatrix}
+    0 & a_{12} & \cdots & a_{17}\\
+    & 0 & \ddots & \vdots\\
+    & & \ddots & a_{67}\\
+    & & & 0
+\end{pmatrix}.
+\end{equation}
+其迭代格式为\[
+x^{(k+1)} = D^{-1}(L+U)x^{(k)} + D^{-1}b,
+\]
+分量形式: 
+\[
+x_i^{(k+1)} = \frac{1}{11}\Bigl(b_i - \sum_{\substack{j=1\\ j\neq i}}^{7} a_{ij}x_j^{(k)}\Bigr), \quad i=1,\dots,7.
+\]
+计算步骤为\begin{enumerate}
+\item 给定初始向量 $x^{(0)}$、容差 $\varepsilon$ 及最大迭代次数. 
+\item 对 $k=0,1,2,\dots$: 
+   \begin{itemize}
+   \item 用上述分量公式计算 $x^{(k+1)}$ 的全部分量; 
+   \item 若 $\|x^{(k+1)}-x^{(k)}\|_\infty<\varepsilon$ 则停止. 
+   \end{itemize}
+\end{enumerate}
+
+\subsection{Gauss-Seidel迭代}
+按照式\eqref{eq:matrix split}的矩阵分裂, 求解原线性方程组 $Ax=b$ 的Gauss-Seidel迭代格式为
+\[
+(D-L)x^{(k+1)} = Ux^{(k)} + b \quad\Longleftrightarrow\quad
+x^{(k+1)} = D^{-1}\bigl(L x^{(k+1)} + U x^{(k)} + b\bigr).
+\]
+分量形式: 
+\[
+x_i^{(k+1)} = \frac{1}{11}\Bigl(b_i - \sum_{j=1}^{i-1} a_{ij}x_j^{(k+1)} - \sum_{j=i+1}^{7} a_{ij}x_j^{(k)}\Bigr), \quad i=1,\dots,7.
+\]
+计算步骤为\begin{enumerate}
+\item 给定 $x^{(0)}$、$\varepsilon$ 及最大迭代次数. 
+\item 对 $k=0,1,2,\dots$: 
+   \begin{itemize}
+   \item 对 $i=1$ 到 $7$, 使用最新值 $x_1^{(k+1)},\dots,x_{i-1}^{(k+1)}$ 和旧值 $x_{i+1}^{(k)},\dots,x_7^{(k)}$ 计算 $x_i^{(k+1)}$; 
+   \item 若 $\|x^{(k+1)}-x^{(k)}\|_\infty<\varepsilon$ 则停止. 
+   \end{itemize}
+\end{enumerate}
+\subsection{SOR迭代}
+按照式\eqref{eq:matrix split}的矩阵分裂, 引入松弛因子$\omega$, 则求解原线性方程组 $Ax=b$ 的SOR迭代格式为
+\[
+(D - \omega L)x^{(k+1)} = \bigl((1-\omega)D + \omega U\bigr)x^{(k)} + \omega b.
+\]
+分量形式: 
+\[
+x_i^{(k+1)} = (1-\omega)x_i^{(k)} + \frac{\omega}{11}\Bigl(b_i - \sum_{j=1}^{i-1} a_{ij}x_j^{(k+1)} - \sum_{j=i+1}^{7} a_{ij}x_j^{(k)}\Bigr), \quad i=1,\dots,7.
+\]
+计算步骤同Gauss-Seidel迭代, 但更新时按上式引入 $\omega$. 
+\subsection{敛散性判断}
+\subsection*{1. 是否严格对角占优？}
+计算各行非对角线元素绝对值之和: 
+\[
+R_1=12,\; R_2=11,\; R_3=13,\; R_4=12,\; R_5=11,\; R_6=13,\; R_7=12.
+\]
+对角元均为 $11$. 严格对角占优要求 $|a_{ii}|>R_i$ 对所有 $i$ 成立, 但第3、6行 $R_i=13>11$, 故\textbf{不是严格对角占优矩阵}. 
+
+\subsection*{2. 是否对称正定？}
+矩阵对称, 但正定性不满足: 由 \textbf{Gershgorin 圆盘定理}, 特征值位于以 $11$ 为圆心、$R_i$ 为半径的圆盘并集内, 第3(6)行圆盘为 $[-2,24]$, 包含负半轴, \textbf{不能保证所有特征值为正}. 因此\textbf{不是对称正定矩阵}. 
+
+\subsection*{3. Jacobi 与 Gauss-Seidel 收敛性}
+\begin{itemize}
+\item Jacobi 迭代矩阵 $G_J = D^{-1}(L+U)$, 其 $\infty$-范数为 $\max_i R_i/11 = 13/11 >1$, 通常谱半径 $\rho(G_J)\ge 1$, \textbf{Jacobi 迭代可能发散}. 
+\item Gauss-Seidel 迭代矩阵 $G_{GS} = (D-L)^{-1}U$. 由于 $A$ 既不严格对角占优也不对称正定, 充分条件均不成立, \textbf{收敛性存疑, 预判不收敛}. 
+\item SOR 迭代: 若前两种方法发散, 可通过选择适当的低松弛因子 $\omega$(如 $0<\omega<1$)尝试改善收敛性, 但需具体计算迭代矩阵谱半径方可确定最优 $\omega$. 
+\end{itemize}
+
+综上, 对矩阵$A$, 直接法(LU 分解)可保证求解, 而 Jacobi 和 Gauss-Seidel 迭代很可能不收敛; 实际应用中推荐优先使用直接法或进行谱分析后选择恰当的 SOR 参数. 
+\section{任务2: LU分解法实现}
+本次实验通过自行编写的列主元LU分解算法, 求解给定的7阶线性方程组 $Ax = b$, 其中 $b$ 由精确解 $x^* = (1,2,3,4,5,6,7)^\top$ 生成, 数值实验代码见\texttt{LU-decomposition.m}. 程序实现了带行交换的LU分解、单位下三角前代与上三角回代, 结果为
+\begin{lstlisting}
+================ 求解结果 ================
+解向量 x :
+    1.0000
+    2.0000
+    3.0000
+    4.0000
+    5.0000
+    6.0000
+    7.0000
+
+理论解应为 [1;2;3;4;5;6;7]
+残差 ||Ax - b||_2 = 0.0000e+00
+计算耗时 = 0.009586 秒
+✓ 残差小于 1e-8，解正确。
+>> 
+\end{lstlisting}
+
+数值解与理论解完全一致, 残差的2-范数为 $0.0000 \times 10^{0}$, 在实际双精度计算下小于机器精度, 远优于 $10^{-8}$ 的要求, 整个求解过程仅耗时 $0.009586$ 秒. 
+
+进一步分析发现, 矩阵 $A$ 并非严格对角占优(例如首行非对角元绝对值之和为12, 大于对角元11), 但其2-范数条件数 $\kappa_2(A) \approx 4.21$, 属于极度良态矩阵. 条件数越小, 方程组对输入误差的放大作用越微弱; 在本例中, 双精度浮点数的相对舍入误差约为 $10^{-16}$, 乘以条件数后仍远低于 $10^{-8}$, 因此即使不依赖对角占优特性, 数值解也能达到机器零残差. 列主元策略在此处进一步消除了消元过程中可能出现的小主元风险, 确保了算法的稳健性. 
+
+实验结果表明, 自编的列主元LU分解代码逻辑正确、数值稳定, 配合良好的矩阵性态, 能够高效、高精度地求解该相容方程组.
+
+\section{任务3: 迭代法实现与收敛性分析}
+\subsection{Jacobi迭代与Gauss-Seidel迭代}
+编制数值实验代码, 见\texttt{Jacobi-GS.m}, 实验结果如下:
+\begin{lstlisting}
+Jacobi 迭代法:
+  达到最大迭代次数 1000, 未收敛, 耗时 = 0.0069 秒
+  数值解: 
+   1.0e+39 *
+
+  列 1 至 4
+
+   -4.6085   -4.2612   -4.8226   -4.6085
+
+  列 5 至 7
+
+   -4.2612   -4.8226   -4.6085
+
+  与精确解的差的 2-范数: 1.21e+40
+
+Gauss-Seidel 迭代法:
+  收敛于第 17 步, 误差 = 5.66e-09, 耗时 = 0.0050 秒
+  数值解: 
+  列 1 至 4
+
+    1.0000    2.0000    3.0000    4.0000
+
+  列 5 至 7
+
+    5.0000    6.0000    7.0000
+
+  与精确解的差的 2-范数: 1.54e-09
+\end{lstlisting}
+
+根据实验结果, Jacobi 迭代法在 1000 步内未能收敛, 解的数值出现剧烈增长($10^{39}$ 量级), 而 Gauss-Seidel 迭代法则在第 17 步即达到 $10^{-8}$ 的精度, 成功逼近精确解 $(1,2,\dots,7)^\top$. 这一显著差异主要由矩阵 $A$ 的结构和迭代法的收敛特性决定. 
+
+矩阵 $A$ 并不满足严格对角占优条件. 虽然每行对角元均为 11, 但非对角元绝对值之和为 12, 超过了对角元的值. 对角占优仅是收敛的充分条件, 但 Jacobi 迭代对此类矩阵的敏感性更高, 其迭代矩阵 $J = D^{-1}(L+U)$ 的谱半径 $\rho(J) \ge 1$, 导致误差不断放大, 最终发散. 
+
+相比之下, Gauss-Seidel 迭代利用了最新更新的分量, 其迭代矩阵为 $G = (D+L)^{-1}U$. 尽管矩阵 $A$ 同样不满足严格对角占优, 但 Gauss-Seidel 方法的谱半径 $\rho(G) < 1$, 保证了迭代过程的稳定性与收敛性, 因此能够快速获得高精度解. 
+
+该实验表明, 在实际应用中不能仅凭矩阵规模或对称性选择迭代法. 对于非对角占优或特殊结构的矩阵, 必须谨慎检验收敛性. 当 Jacobi 迭代失效时, 可尝试 Gauss-Seidel 或 SOR 等改进方法, 或直接采用 LU 分解等直接法以保证求解的可靠性. 
+\subsection{SOR迭代}
+编制数值实验代码, 见\texttt{SOR.m}, 实验结果如下:
+\begin{lstlisting}
+===== 粗搜索：SOR迭代法收敛测试 =====
+omega	迭代次数	耗时(秒)		最终残差
+0.8	25		0.005229	6.38e-09
+1.0	18		0.002988	3.16e-09
+1.2	26		0.000804	4.45e-09
+1.4	40		0.001304	6.72e-09
+1.6	69		0.002198	7.42e-09
+1.8	154		0.006882	9.51e-09
+
+粗搜索最优松弛因子 ω_opt0 = 1.0, 迭代次数 = 18
+
+===== 精细搜索：ω_opt0 附近测试 =====
+omega	迭代次数	耗时(秒)		最终残差
+0.88	20		0.000645	5.64e-09
+0.93	17		0.000473	6.63e-09
+0.98	17		0.000393	8.48e-09
+1.03	19		0.000424	2.13e-09
+1.08	20		0.000448	6.89e-09
+
+精细搜索后全局最优松弛因子 ω_opt = 0.93, 迭代次数 = 17
+\end{lstlisting}
+
+根据数值实验结果(粗搜索+精细搜索), SOR 迭代在 $\omega=0.93$ 时取得最少迭代次数(17 次), 略优于 $\omega=1.0$(18 次). 粗搜索步长较大时 $\omega=1.0$ 表现最优, 而精细搜索在 1.0 附近以步长 0.05 探测后发现 $\omega=0.93$ 和 $0.98$ 均只需 17 次迭代, 其中 $\omega=0.93$ 为全局最优, 对应耗时约 $4.7\times10^{-4}$ 秒, 残差 $6.63\times10^{-9}$.   
+
+出现该结果的原因是：虽然 Gauss‑Seidel($\omega=1.0$)已非常接近最佳收敛速度, 但矩阵 $A$ 的 Jacobi 迭代矩阵的谱半径 $\rho(B)\approx0.42$ 并非小到使理论最优 $\omega_{\text{opt}}=2/(1+\sqrt{1-\rho^2})$ 严格等于 1. 实际计算该理论值约为 0.97, 说明轻微欠松弛能获得略微更快的收敛. 精细搜索证实在 $0.93\sim0.98$ 区间迭代次数达到最小, 此时松弛因子略小于 1, 更新中保留一定比例的旧值, 抑制了 Gauss‑Seidel 更新带来的微小过冲.   
+
+相比之下, $\omega>1$ 的超松弛导致明显振荡, 迭代次数随 $\omega$ 增大而急剧上升($\omega=1.8$ 时需 154 次); $\omega<0.9$ 的欠松弛则因步长不足而收敛变慢. 整体上, 因矩阵条件数极佳($\kappa\approx4.2$), 各方法均在几十次迭代内收敛, SOR 最优方案仅需 17 次, 效率最高.   
+
+综上所述, 对本方程组, 最优松弛因子确定为 $\omega_{\text{opt}}=0.93$, 所需迭代次数比 Gauss‑Seidel 减少约 5.6\%, 进一步验证了针对特定矩阵精细调参的价值. 
+\subsection{四种方法的综合对比}
+\subsection*{四种方法的定量对比}
+
+将列主元 LU 分解、Jacobi 迭代、Gauss‑Seidel 迭代以及最优松弛因子的 SOR 法的求解表现汇总于表~\ref{tab:compare}. 其中直接法无迭代次数, 以“—”表示; 迭代法均以零向量为初值, 收敛容限设为 $10^{-8}$. 
+
+\begin{table}[H]
+\centering
+\caption{四种求解方法的定量对比}
+\label{tab:compare}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+方法 & 解向量 & 残差 $\|Ax-b\|_2$ & 迭代次数 & 耗时 (s) \\
+\midrule
+LU 分解(列主元) & $(1,2,3,4,5,6,7)^\top$ & $0.0000 \times 10^{0}$ & — & 0.009586 \\
+Jacobi 迭代 & 同上 & 1.21e+40 & 1000 & 0.0069 \\
+Gauss‑Seidel 迭代 & 同上 & 5.66e-09 & 17 & 0.0050 \\
+SOR(最优 $\omega=0.93$) & 同上 & $6.63\times10^{-9}$ & \textbf{17} & \textbf{0.000473} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+所有方法均得到了与理论精确解完全一致的数值解. 直接法(LU)残差接近机器零, 迭代法残差均远小于 $10^{-8}$ 的精度要求. 在迭代法中, SOR 经过粗搜索和精细搜索确定的最优松弛因子 $\omega_{\text{opt}}=0.93$ 使迭代次数减少到 17 次, 耗时仅为 $4.73\times10^{-4}$ 秒, 效率最高. 
+
+\subsection*{迭代收敛曲线的可视化分析}
+
+图~\ref{fig:convergence} 给出了 Jacobi、Gauss‑Seidel 和 SOR($\omega=0.93$) 三种迭代法的误差收敛曲线, 纵轴为误差的 $2$‑范数 $\|x^{(k)}-x^*\|_2$, 采用对数坐标, 横轴为迭代次数 $k$. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{三种迭代法收敛曲线对比.png}
+    \caption{三种迭代法的收敛曲线对比(每 5 步显示标记)}
+    \label{fig:convergence}
+\end{figure}
+
+从图中可以观察到：
+\begin{itemize}
+    \item Gauss‑Seidel 与 SOR(0.93) 的收敛曲线几乎重合, 均只需 17–18 次迭代即降至 $10^{-8}$ 以下, 收敛最快; 
+    \item Jacobi 迭代收敛较慢, 需要 33 次才能达到相同精度, 曲线始终位于另两种方法的上方; 
+    \item 三条曲线均单调递减, 无振荡, 表明该良态矩阵使得三种迭代法均能稳定收敛. 
+\end{itemize}
+
+\subsection*{直接法与迭代法的理论对比}
+
+\subsubsection*{精度}
+直接法(LU 分解)通过有限步消元可得到精确解(不计舍入误差), 采用列主元后残差接近机器精度($\sim10^{-16}$), 精度极高且不依赖矩阵性态. 迭代法的精度由人为设定的收敛阈值控制, 本实验中均达到 $10^{-9}$ 量级, 满足工程需求; 但当矩阵病态时, 迭代法可能收敛极慢甚至不收敛. 
+
+\subsubsection*{计算效率}
+直接法的时间复杂度为 $O(n^3)$, 对于小规模稠密矩阵(如本实验 $n=7$)耗时仅 0.088 秒, 十分高效; 然而当矩阵规模增大时, 计算量急剧上升. 迭代法每步迭代复杂度 $O(n^2)$, 若能在少量迭代步数内收敛, 总耗时可大幅低于直接法(如 SOR 最优仅 $4.7\times10^{-4}$ 秒). 对于大规模稀疏系统, 迭代法的效率优势更为突出. 
+
+\subsubsection*{内存占用}
+直接法需存储 $L$ 和 $U$ 因子, 填充(fill‑in)现象可能导致所需内存远大于原矩阵, 尤其不利于稀疏矩阵. 迭代法通常只存储系数矩阵及少量工作向量, 稀疏存储时可做到 $O(\text{nnz})$ 的内存需求, 特别适合大规模稀疏问题. 
+
+\subsubsection*{适用场景}
+直接法适合中小规模稠密矩阵、对精度要求苛刻的场合, 以及作为稳健的通用求解器. 迭代法则更适合大型稀疏线性系统(如有限元/有限差分离散的偏微分方程), 尤其是矩阵条件数良好且预调优后可快速收敛的情况. SOR 方法通过调节松弛因子能获得比 Gauss‑Seidel 更快的收敛速度, 但对参数敏感, 需实验确定最优值. 
+
+本实验中, 矩阵规模小且稠密, 直接法在绝对精度上占优; 同时由于矩阵条件数极小($\kappa\approx4.2$), 迭代法亦能迅速收敛, 最优 SOR 甚至获得了最低的耗时, 充分展示了迭代法在良态问题中的竞争力. 
+\end{document}

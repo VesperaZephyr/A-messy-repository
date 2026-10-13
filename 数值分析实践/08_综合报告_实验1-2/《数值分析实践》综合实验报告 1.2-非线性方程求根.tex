@@ -1,0 +1,567 @@
+% !TEX program = xelatex
+\documentclass[zihao=-4,a4paper]{ctexart}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{changepage} % 用于调整局部正文的左右边距
+\usepackage{pdfpages}
+\setmonofont{Consolas}   % 设置等宽字体为 Consolas
+\setCJKmainfont{SimSun}[AutoFakeBold=2.5]
+\usepackage{hyperref}
+% 页面布局
+\usepackage[
+  top    = 1.7cm,
+  left   = 1.7cm,
+  right  = 1.7cm,
+  bottom = 2.7cm,
+  footskip = 1cm
+]{geometry}
+\linespread{1.5}
+% 提供 current page text area 节点
+\usepackage{tikzpagenodes}
+\usetikzlibrary{calc}            % 用于计算坐标
+\usepackage{fancyhdr}
+% ==============================
+% 全局变量: 存储版心宽度
+% ==============================
+\newlength{\myTextWidth}
+\newcommand{\calcTextWidth}{%
+  \path let \p1=(current page text area.east), \p2=(current page text area.west) in 
+    \pgfextra{\pgfmathsetlength{\myTextWidth}{\x1-\x2}};
+}
+
+% ==============================
+% 背景画线逻辑
+% ==============================
+\newif\ifdrawbackground  % 定义背景绘制开关
+\drawbackgroundtrue      % 默认开启背景绘制
+\AddToHook{shipout/background}{%
+  \ifdrawbackground %只有开关开启时才绘制背景
+  \tikz[remember picture, overlay]{%
+    
+    % 定义上下外扩的距离(和表格撑开的距离保持一致)
+    \def\vpad{0.8em} 
+
+    % --- 所有页: 底部横线 (向下偏移 \vpad) ---
+    \draw[line width=1pt] 
+      ([yshift=-\vpad]current page text area.south west) -- 
+      ([yshift=-\vpad]current page text area.south east);
+
+    \ifnum\value{page}=1
+      % --- 第一页: 绘制 2x6 表格边框 ---
+      \def\innerLineWidth{0.8pt}
+      \def\outerLineWidth{1pt}
+
+      % 1. 上横线 (表格节点已通过 inner ysep 撑开, 直接画)
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.west) -- 
+        (title-bottom-mark -| current page text area.east);
+
+      % 2. 下横线 (同上)
+      \draw[line width=\outerLineWidth] 
+        (table-bottom-mark -| current page text area.west) -- 
+        (table-bottom-mark -| current page text area.east);
+
+      % 3. 中间横线 (自动居中)
+      \draw[line width=\innerLineWidth] 
+        ($(title-bottom-mark -| current page text area.west)!0.5!(table-bottom-mark -| current page text area.west)$) -- 
+        ($(title-bottom-mark -| current page text area.east)!0.5!(table-bottom-mark -| current page text area.east)$);
+
+      % 4. 左右外框竖线 (从表格顶部一直到页底, 页底向下偏移 \vpad)
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.west) -- 
+        ([yshift=-\vpad]current page text area.south west);
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.east) -- 
+        ([yshift=-\vpad]current page text area.south east);
+
+      % 5. 内部竖线 (5条)
+      \foreach \i in {1,2,...,5} {
+        \pgfmathsetmacro{\pos}{\i/6}
+        \draw[line width=\innerLineWidth]
+          ($(title-bottom-mark -| current page text area.west)! \pos !(title-bottom-mark -| current page text area.east)$) --
+          ($(table-bottom-mark -| current page text area.west)! \pos !(table-bottom-mark -| current page text area.east)$);
+      }
+
+    \else
+      % --- 后续页: 标准四周边框 (上下各外扩 \vpad) ---
+      % 顶部横线向上偏移
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north west) -- ([yshift=\vpad]current page text area.north east);
+      % 左右竖线跟随上下偏移
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north west) -- ([yshift=-\vpad]current page text area.south west);
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north east) -- ([yshift=-\vpad]current page text area.south east);
+    \fi
+  }%
+  \fi
+}
+
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% 直接使用 \textwidth 计算列宽
+% ==============================
+% \textwidth/6 保证精确6等分, 减去 2\tabcolsep 扣除单元格自带的左右边距
+\newcolumntype{C}{>{\raggedright\arraybackslash}p{\dimexpr\textwidth/6-2\tabcolsep\relax}}
+
+% 自定义命令: 在当前位置画一条贯穿全宽的横线
+% ==============================
+\newcommand{\addhline}{%
+  \par
+  \noindent
+  \begin{tikzpicture}[remember picture, overlay]
+    % (0,0) 代表当前文字所在的高度
+    % current page text area.west 代表版心最左侧
+    % |- 符号表示: 取左边的 X 坐标, 取右边的 Y 坐标
+    \draw[line width=1pt] 
+      (current page text area.west |- 0,0) -- 
+      (current page text area.east |- 0,0);
+  \end{tikzpicture}\par
+}
+
+\newcommand{\dd}{\mathop{}\!\mathrm{d}}
+\newcommand{\myS}{14}
+\newcommand{\myt}{0.21}
+
+% MATLAB 代码风格
+\definecolor{matlabgreen}{rgb}{0,0.6,0}
+\definecolor{matlabgray}{rgb}{0.5,0.5,0.5}
+\definecolor{matlabpurple}{rgb}{0.58,0,0.82}
+\definecolor{matlabbg}{rgb}{0.95,0.95,0.92}
+\lstset{
+    language=Matlab,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{matlabgreen},
+    stringstyle=\color{matlabpurple},
+    backgroundcolor=\color{matlabbg},
+    numbers=left,
+    numberstyle=\tiny\color{matlabgray},
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{black!30},
+    captionpos=b,
+    tabsize=4,
+    morekeywords={end, if, else, elseif, for, while, function, return, break, switch, case, otherwise}
+}
+
+\begin{document}
+
+% 插入封面: 临时关闭背景绘制 + 清空页眉页脚 + 不占页码
+\drawbackgroundfalse
+\pagestyle{empty}
+\includepdf[pages={1}]{封面.pdf}
+\drawbackgroundtrue  % 恢复背景绘制
+\pagestyle{fancy}    % 恢复你的页眉页脚
+\setcounter{page}{1} % 重置页码, 正文从第1页开始(完美兼容你原来的 \ifnum\value{page}=1 逻辑)
+
+\begin{center}
+  \zihao{-2}\bfseries 数值分析实践报告(一)
+\end{center}
+
+% --- 表格内容区 ---
+\noindent
+\begin{tikzpicture}[remember picture]
+  % 将整个 tabular 放入一个 TikZ 节点中, 彻底屏蔽 LaTeX 段落间距的干扰
+  \node[anchor=north west, inner sep=0pt, outer sep=0pt] (header-table) at (0,0) {%
+    \renewcommand{\arraystretch}{1.8}% 增加行高
+    \begin{tabular}{CCCCCC} 
+      姓\quad 名 & VesperaZephyr & 班\quad 级 & \small 数学与应用数学 & 报告评分 & \\
+      学\quad 号 & 114514 & 地点/机号 &  & 指导教师 & 
+    \end{tabular}%
+  };
+  
+  % 自动获取这个表格真实的左上角和左下角坐标, 传给背景画线
+  \coordinate (title-bottom-mark) at (header-table.north west);
+  \coordinate (table-bottom-mark) at (header-table.south west);
+\end{tikzpicture}
+
+\setlength{\leftskip}{1em}
+\setlength{\rightskip}{1em}
+
+% 实验名称
+\noindent{\bfseries 一、个性化非线性方程迭代求解及AI生成代码的批判性验证}
+
+\addhline
+
+\noindent{\bfseries 二、实验目的: }
+\begin{enumerate}
+    \item 理解不动点迭代、牛顿迭代、割线法的基本原理、收敛条件及优缺点。
+    \item 掌握将具体方程转化为不同迭代格式的能力，并编程实现。
+    \item 培养数值计算的关键意识：初值敏感性、收敛性判断、误差分析、算法稳定性。
+    \item 学习如何与AI（如大语言模型）进行有效、批判性的协作。
+\end{enumerate}
+
+\addhline
+
+\noindent{\bfseries 实验内容: }
+
+用迭代法求解个性化非线性方程：
+\[
+f(x)=\arctan(5x-5t)+0.5(x-t)+1=0
+\]
+其中 \(t=\frac{1.5S}{100}\)，参数 \(S\) 由学生学号生成：\(S = \text{学号最后两位}\)。
+
+
+\addhline
+
+\noindent{\bfseries 四、实验结果}
+
+\textbf{学号后两位} $S = \myS$, 计算得 $t = 1.5 \times S/100 = 1.5 \times \myS/100 = \myt$, 因此完整的非线性方程为: 
+\begin{equation}
+    f(x) = \arctan(5x - 5t) + 0.5(x - t) + 1 = \arctan(5x - 1.05) + 0.5x + 0.895 = 0.
+    \label{eq:personal}
+\end{equation}
+
+\section{任务1: 理论准备}
+\subsection{函数图像}
+使用 MATLAB 绘制 $y=f(x)$ 在区间 $[t-3,\, t+3] = [-2.79,\, 3.21]$ 上的图像(见图\ref{fig:fplot}, 绘图代码见附录\ref{code:function_plot}:\texttt{function\_plot.m}). 由图可见, 方程在 $x\approx 0$ 附近有一个实根. 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{函数绘图.png}
+    \caption{函数 $f(x)$ 的图像}
+    \label{fig:fplot}
+\end{figure}
+
+\section{任务2: 不动点迭代法构造与实现}
+\subsection{两种等价迭代格式}
+将 $f(x)=0$ 改写为 $x = \varphi(x)$, 我们使用两种方式构造迭代格式: 
+\begin{itemize}
+    \item 格式一: 将 $0.5x$ 移到等式一边, 解出 $x$: 
+    \[
+    0.5x = -\arctan(5x - 1.05) - 0.895\iff x = -2\arctan(5x - 1.05) - 1.79,
+    \]
+    故迭代公式为: 
+    \begin{equation}\label{eq:phi1}
+        x_{n+1} = -2\arctan(5x_n - 1.05) - 1.79.
+    \end{equation}
+    \item 格式二: 先将方程改写为: 
+    \[
+    \arctan(5x - 1.05) = -0.5x - 0.895,
+    \]
+    两边取正切, 再解出 $x$: 
+    \begin{align*}
+    5x - 1.05 = \tan(-0.5x - 0.895)\iff x & = 0.21 + 0.2 \tan(-0.5x - 0.895) \\ & = 0.21 - 0.2 \tan(0.5x + 0.895),
+    \end{align*}
+    故迭代公式为: 
+    \begin{equation}\label{eq:phi2}
+        x_{n+1} = 0.21 - 0.2 \tan(0.5x_n + 0.895).
+    \end{equation}
+\end{itemize}
+
+这两种迭代格式都与原方程等价, 可用于不动点迭代求解. 
+
+\subsection{AI 协作环节}
+\textbf{使用的提示词: }
+\begin{center}
+  \begin{minipage}{0.9\textwidth}
+    \begin{lstlisting}[language=, caption={输入给 AI 的提示词}, backgroundcolor=\color{black!5}, frame=single]
+请用 MATLAB 编写不动点迭代法求解非线性方程 arctan(5x-1.05)+0.5x+0.895=0, 迭代格式为 x = - 2*arctan(5x-1.05) - 1.79 和 x = 0.21 - 0.2*tan(0.5x + 0.895), 初值 x0=0.01, 控制相邻误差小于1e-8, 最大迭代次数100步, 输出每一步的近似根和误差. 
+  \end{lstlisting}
+  \end{minipage}
+\end{center}
+
+
+\textbf{AI 生成的原始代码(存在不足): }
+\begin{lstlisting}[caption={AI 原始代码}, label=code:ai_raw]
+% 定义两种迭代格式, 初值 x0 = 0.01
+x0 = 0.01;
+tol = 1e-8;      % 收敛容差
+maxIter = 100;   % 最大迭代步数
+
+fprintf('初始值 x0 = %.8f\n\n', x0);
+
+% ---------- 格式一: x = -2*arctan(5x - 1.05) - 1.79 ----------
+x = x0;
+iter1 = 0;
+err1 = inf;
+fprintf('格式一迭代过程:\n');
+fprintf(' iter        x               |x-x_prev|\n');
+while err1 > tol && iter1 < maxIter
+    x_new = -2 * atan(5 * x - 1.05) - 1.79;
+    err1 = abs(x_new - x);
+    iter1 = iter1 + 1;
+    fprintf(' %3d   %15.10f   %15.10e\n', iter1, x_new, err1);
+    x = x_new;
+end
+fprintf('格式一最终近似根: %.10f, 迭代步数: %d\n\n', x, iter1);
+
+% ---------- 格式二: x = 0.21 - 0.2*tan(0.5x + 0.895) ----------
+x = x0;
+iter2 = 0;
+err2 = inf;
+fprintf('格式二迭代过程:\n');
+fprintf(' iter        x               |x-x_prev|\n');
+while err2 > tol && iter2 < maxIter
+    arg = 0.5 * x + 0.895;
+    % 避免正切函数发散(参数离奇点太近时停止) 
+    if abs(cos(arg)) < 1e-10
+        disp('格式二: 正切参数接近奇点, 迭代终止. ');
+        break;
+    end
+    x_new = 0.21 - 0.2 * tan(arg);
+    err2 = abs(x_new - x);
+    iter2 = iter2 + 1;
+    fprintf(' %3d   %15.10f   %15.10e\n', iter2, x_new, err2);
+    x = x_new;
+end
+if iter2 < maxIter && err2 <= tol
+    fprintf('格式二最终近似根: %.10f, 迭代步数: %d\n', x, iter2);
+else
+    fprintf('格式二未在 %d 步内收敛或已终止. \n', maxIter);
+end
+\end{lstlisting}
+
+下面分析AI原始代码的问题: 
+\begin{enumerate}
+    \item \textbf{未记录迭代历史}: 只输出到屏幕, 不便于后续绘图和分析收敛速度. 
+    
+    \item \textbf{发散处理不完善}: 格式二仅检测了 $\cos(\arg)$ 是否趋于零, 但正切函数在参数接近 $\pi/2 + k\pi$ 时即趋近无穷, 即使 $\cos$ 不为 $10^{-10}$ 仍可能产生巨大的跳跃, 应同时检查迭代值是否超出合理范围(如复数或 $\mathrm{Inf}/\mathrm{NaN}$). 
+    
+    \item \textbf{缺少收敛性检验}: 如果迭代进入循环震荡, $\mathrm{err}$ 可能永不满足, 但程序只是在步数上限退出, 没有给出“可能不收敛”的明确警告. 
+    
+    \item \textbf{初值固定}: 虽然题目给定了初值 $0.01$, 但我们可以增加对初值合理性的简单判断, 并在报告中讨论不同初值的影响. 
+    
+    \item \textbf{无可视化}: 迭代过程仅限于命令行输出, 不易直观判断收敛趋势. 
+    
+    \item \textbf{格式一与格式二的函数表达式可能混淆}: 注释与实现需保持一致, 且应突出是从原方程等价变形而来, 方便阅读. 
+\end{enumerate}
+经过思考, 修改方案如下:
+\begin{itemize}
+    \item 用数组 \texttt{x1\_hist}、\texttt{x2\_hist} 保存每次迭代的值, 方便后续绘图和误差计算. 
+    
+    \item 在每次迭代中加入 \textbf{Inf/NaN 检测}, 一旦出现发散立即终止并提示. 
+    
+    \item 增加对迭代结果的\textbf{精度评估}, 用残差 $|f(x)|$ 验证求得的根是否正确. 
+    
+    \item 添加\textbf{迭代收敛趋势图}, 分别画出两种格式的迭代值序列和误差变化. 
+    
+    \item 对格式二的参数检查更严格: 当 $|\arg - \pi/2 - k\pi|$ 小于阈值时, 发出警告并退出. 
+    
+    \item 给出更详细的注释, 解释每一步的作用. 
+\end{itemize}
+
+最终修正后的 MATLAB 代码见\texttt{Iterative\_process\_for\_solving\_nonlinear\_}
+
+\noindent\texttt{equations.m}.
+
+\subsection{实验日志与结果}
+以 $x_0 = t - 0.2 = 0.01$ 运行两种格式, 结果如下: 
+\begin{itemize}
+    \item \textbf{格式一}: 结果是发散. 迭代值迅速进入并保持两个值之间的跳动: $A \approx 1.26774642$, $B \approx -4.55784256$, 误差 $|x_{n+1}-x_n|$ 恒为 $5.82558899$, 无法趋于零. 近似根处的残差 $f(x) \approx \pm 2.9128 \neq 0$, 未满足方程. 
+    \item \textbf{格式二}: 结果是收敛. 迭代值逐步逼近 $x^* \approx -0.0315511019$, 误差逐渐减小, 13 步后满足容差 $10^{-8}$. 近似根处的残差 $f(x^*) \approx -1.29\times10^{-9}$, 已经非常接近零, 满足方程的要求.
+\end{itemize}
+实验结果绘图如下:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{两种迭代格式的结果.png}
+    \caption{两种格式的迭代结果对比}
+    \label{fig:iterative_results}
+\end{figure}
+下面进行理论分析. 
+
+不动点迭代 $x_{n+1} = g(x_n)$ 局部收敛的一个\textbf{充分条件}是: 在不动点 $x^*$ 处满足 $|g'(x^*)| < 1$.   对于格式一, 有: 
+\[
+g_1(x) = -2\arctan(5x - 1.05) - 1.79,
+\]
+其导数为: 
+\[
+g_1'(x) = -2 \cdot \frac{5}{1 + (5x - 1.05)^2} = -\frac{10}{1 + (5x - 1.05)^2},
+\]
+该方程的不动点即为原方程的根, 由格式二得到 $x^* \approx -0.0315511$.   
+代入计算: 
+\[
+5x^* - 1.05 \approx -1.207755, \quad (5x^* - 1.05)^2 \approx 1.4587
+\]
+\[
+g_1'(x^*) \approx -\frac{10}{2.4587} \approx -4.067, 
+\]
+显然 $|g_1'(x^*)| \approx 4.067 > 1$. 根据不动点迭代理论, 当 $|g'(x^*)| > 1$ 时, 不动点 $x^*$ 为\textbf{排斥不动点}. 任何初始值(除非恰好是 $x^*$ 本身)都会在迭代过程中被推离该点, 无法收敛到它. 当迭代值远离 $x^*$ 后, 系统可能进入一个稳定周期. 从输出可见, 从第3步开始序列在两个值 $A$ 和 $B$ 之间严格交替, 即: 
+\[
+B = g_1(A), \quad A = g_1(B).
+\]
+此时满足 $g_1(g_1(A)) = A$, 形成了2-周期循环. 因为 $g_1$ 在较大范围内绝对值大于1, 不断的“排斥”作用使轨道在两个远距离点之间来回反弹, 无法趋于一个固定点. 这是导数绝对值大于1造成的发散行为的一种典型表现. 
+
+格式二的迭代函数为: 
+\[
+g_2(x) = 0.21 - 0.2\tan(0.5x + 0.895),
+\]
+求导得
+\[
+g_2'(x) = -0.2 \cdot \frac{0.5}{\cos^2(0.5x + 0.895)} = -\frac{0.1}{\cos^2(0.5x + 0.895)}.
+\]
+在 $x^* \approx -0.0315511$ 处, $0.5x^* + 0.895 \approx 0.8792245$,   
+$\cos(0.8792) \approx 0.6374$, $\cos^2 \approx 0.4063$,   
+故: 
+\[
+|g_2'(x^*)| \approx \frac{0.1}{0.4063} \approx 0.246 < 1,
+\]
+满足局部收敛的充分条件, 因此迭代从邻近的初值 $x_0=0.01$ 出发会快速收敛到根. 
+
+
+\section{任务3: Newton迭代法实现与验证}
+Newton 迭代法的核心在于计算函数 $f(x)$ 的导数 $f'(x)$, 并使用迭代公式:
+\[
+x_{k+1} = x_k - \frac{f(x_k)}{f'(x_k)},
+\]
+其中\[
+f'(x) = \frac{5}{1+(5x-1.05)^2} + 0.5.
+\]
+独立编写的Newton法核心循环(见\texttt{Newton\_iteration.m}), 此处展示关键部分: 
+\begin{lstlisting}[caption={Newton法核心代码}]
+for k = 1:maxIter
+    fx = f(x);
+    dfx = df(x);
+    if abs(dfx) < 1e-14
+        error('导数接近零, 无法继续迭代');
+    end
+    x_new = x - fx / dfx;
+    err = abs(x_new - x);
+    fprintf(' %3d    %15.10f    %15.10e    %15.10e\n', k, x_new, fx, err);
+    if err < tol
+        x = x_new;
+        break;
+    end
+    x = x_new;
+end
+\end{lstlisting}
+
+\subsection{收敛速度对比}
+使用相同初值 $x_0 = 0.01$, 绘制不动点法($\varphi_2$)与Newton法的误差下降曲线(见图\ref{fig:compare}, 绘图代码见\ref{code:compare_convergence}: \texttt{compare\_convergence.m}). Newton法呈二次收敛, 误差曲线下降斜率远大于线性收敛的不动点法, 与理论一致. 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Newton迭代与不动点迭代的收敛速度比较.png}
+    \caption{不动点迭代与Newton法误差 $\log_{10}|x_k-x_{k-1}|$ 对比}
+    \label{fig:compare}
+\end{figure}
+
+\section{任务4: 割线法探索}
+\subsection{迭代公式}
+给定两点 $x_{k-1}, x_k$, 割线法公式: 
+\[
+x_{k+1} = x_k - f(x_k) \cdot \frac{x_k - x_{k-1}}{f(x_k) - f(x_{k-1})}
+\]
+取 $x_0 = 0.01$, $x_1 = x_0 + 0.1 = 0.11$. 
+
+\subsection{实现与比较}
+独立编写割线法程序(\texttt{secant\_method.m}). 根据运行结果, Newton法在初值 $x_0 = 0.01$ 下共迭代5次达到容差 $10^{-12}$ 的收敛要求, 而割线法以 $x_0 = 0.01$ 和 $x_1 = 0.11$ 起步则需要7次迭代. 这一差异源于两者收敛阶的不同: Newton法具有二阶收敛性, 一旦进入局部收敛区域, 每步有效数字近似翻倍; 割线法的收敛阶约为1.618, 虽比线性收敛快, 但仍慢于二阶, 因此通常需要稍多的迭代步数才能达到同样高的精度. 
+
+计算时间方面, Newton法耗时约 $2.007\times10^{-3}$ 秒, 割线法约为 $3.704\times10^{-3}$ 秒, 后者是前者的1.85倍左右. 表面上看, 割线法每步仅计算一个函数值, 而Newton法需同时计算函数值和导数值, 单步计算量更小, 但总耗时却略高, 原因在于割线法需要更多迭代步数来补足收敛速度的劣势, 最终累计的函数计算次数与除法运算略多于Newton法. 不过两者处于同一数量级, 均展现出很高的计算效率. \footnote{每次运行时间都不一样.}
+
+从最终近似根的精度来看, 两种方法给出的根均为 $-0.031551101430$, 在当前显示精度下完全一致, 且都能满足所设的 $10^{-12}$ 容差, 表明算法实现的正确性与稳定性. 若与更高精度参考值相比, 末尾小数位的细微偏差来源于浮点舍入误差以及迭代终止判断的有限精度, 属于数值计算中的正常现象. 
+
+综合而言, 本次实验直观验证了Newton法和割线法的收敛特性: Newton法凭借二阶收敛在迭代步数和运行时间上都略有优势, 但需要显式的导数信息; 割线法以超线性收敛提供了一种无需导数的有效替代, 虽然步数稍多, 整体性能仍然优异. 这一对比结果与理论预期完全吻合, 为实际应用中根据导数可得性选择合适的求根方法提供了参考依据. 
+
+\section{任务5: 综合评估与错误分析}
+\subsection{“坏”初值实验}
+
+本次实验刻意选取了远离真实根 $x^* \approx -0.03155$ 的初值($x_0=100$ 等). 结果显示:
+
+\begin{itemize}
+    \item 当 $x_0=100$ 时, 迭代序列并未如预期般收敛, 而是陷入了 \textbf{大幅震荡}. 第一步从 100 跳到 $-4.92$, 第二步反弹至 $1.18$, 随后交替出现正值与负值. 尽管相邻迭代误差从 $10^2$ 量级逐渐减小, 但至第 15 步时 $|x_{15}-x_{14}| \approx 3.39$, 远未达到 $10^{-12}$ 的收敛容差. 因循环仅设定了 15 次输出, 程序强行终止, 给出的终值 $-2.3897$ 并非原方程的根. 
+    
+    \item 在更大范围的初值扫描中($10, 100, -50, -100, 10^6$), 牛顿法均在 100 步内未能收敛, 终值分别停在 $0.9983$ 或 $-2.3873$, 这些点的函数值远不为零, 属于\textbf{伪收敛}(即陷入周期 2 或更高周期的稳定循环, 而非趋近真实不动点). 
+\end{itemize}
+
+该现象的根源在于牛顿迭代在该方程上的动力学行为并非全局收敛. 当 $x$ 的模很大时, $\arctan(5x-1.05)$ 近似于 $\pm\pi/2$, 函数呈近似线性增长 $f(x) \approx 0.5x + \text{const}$, 导数 $f'(x) \approx 0.5$. 牛顿更新公式近似为: 
+\[
+x_{n+1} \approx x_n - \frac{0.5x_n + c}{0.5} = x_n - (x_n + 2c) = -2c,
+\]
+导致下一步骤跳到几乎与当前点无关的常数, 由此引发正负之间的剧烈反弹. 尽管导数始终大于 0.5, 保证了每一步的下降方向, 但步长过大且函数在原点的弯曲特性使得迭代极易落入一对周期 2 的\textbf{吸引点}, 而无法逃逸到真正的根. 这一实验结果彻底否定了之前“牛顿法对该方程全局收敛”的猜测, 事实是: 牛顿法仅具有\textbf{局部收敛性}, 初值必须足够靠近根才能确保收敛. 
+
+相比之下, 初值 $x_0=0.01$ 或 $0.21$(离根很近)则分别仅需 5 或 6 步收敛至真根, 再次印证了牛顿法在根附近的快速二阶收敛特性. 
+
+\subsubsection*{三种方法的稳定性与适用性对比}
+使用Matlab绘图, 结果如下, 代码见\texttt{comprehensive\_assessment.m}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{三种求根方法收敛速度对比.png}
+    \caption{三种求根方法收敛速度的对比}
+    \label{fig:three_methods}
+\end{figure}
+\subsection{方法稳定性讨论}
+\begin{enumerate}
+    \item \textbf{不动点迭代(格式二)}
+    \begin{itemize}[rightmargin=0.5cm]
+        \item \textbf{对初值的依赖性}: 实验中对 $0.01$ 到 $10$ 的多个初值均能收敛至真根, 迭代步数稳定在 19-23 步(容差 $10^{-12}$). 这表明在根的一个较大邻域内, 迭代函数 $g(x)=0.21-0.2\tan(0.5x+0.895)$ 满足 $|g'(x)|<1$, 具有一定的大范围收敛能力. 但当初值过于偏离以至于参数进入正切函数的奇点附近时, 迭代会直接发散或溢出. 格式一的函数则因根处导数绝对值大于 4, 对所有初值均发散, 毫无实用价值. 
+        \item \textbf{收敛速度}: 线性收敛, 收敛因子约为 0.246, 即每步误差约减为前一步的 1/4. 达到 $10^{-12}$ 需十几步, 速度明显慢于后两种方法. 
+        \item \textbf{编程复杂度}: 最低, 仅需反复计算同一个表达式, 无需导数或历史信息. 
+        \item \textbf{适用场景}: 适合对精度要求不高、且能够构造出压缩映射(收缩因子足够小)的问题; 常用于理论分析或作为简单嵌入式系统的求解器. 
+    \end{itemize}
+    
+    \item \textbf{割线法}
+    \begin{itemize}[rightmargin=0.5cm]
+        \item \textbf{对初值的依赖性}: 测试了从近到远的多组初值对(最远达 $x_0=100, x_1=101$), 割线法均成功收敛至真根, 步数从 6 到 15 不等. 即使初值远离根, 仍未出现发散或陷于周期解, 显示出极佳的\textbf{全局收敛鲁棒性}. 这是因为割线法不依赖于导数符号, 只利用函数值的差分, 且步长会自动收缩. 
+        \item \textbf{收敛速度}: 超线性(约 1.618 阶), 介于线性和二次之间. 从效率看, 步数明显少于不动点迭代, 仅略多于局部收敛的牛顿法. 在极端初值下虽需更多步, 但仍远未达到 100 步的上限. 
+        \item \textbf{编程复杂度}: 中等, 只需函数值, 但须维护两组历史值. 
+        \item \textbf{适用场景}: 当导数难以获得或计算代价过高时, 割线法是理想的通用求根器, 既兼顾了速度, 又避免了对导数的依赖, 且具有极好的全局安全性. 
+    \end{itemize}
+    
+    \item \textbf{牛顿法}
+    \begin{itemize}[rightmargin=0.5cm]
+        \item \textbf{对初值的依赖性}: 局部收敛性极强(根附近 4-5 步即可达机器精度), 但全局收敛性差. 初值稍远便会陷入周期震荡, 最终迭代序列在两个伪吸引子之间循环, 永远无法到达真根, 且循环值本身并非方程的根. 必须配合某种\textbf{全局化策略}(如线搜索、信赖域)或依赖精确的初值猜测才能安全使用. 
+        \item \textbf{收敛速度}: 二阶收敛, 一旦进入收敛域, 效率无可匹敌. 
+        \item \textbf{编程复杂度}: 较高, 需提供函数及其导数, 在复杂模型中导数可能难以编码或计算开销大. 
+        \item \textbf{适用场景}: 适用于具有良好初值估计的高精度计算问题, 或在迭代外层辅以防陷入循环的保护措施(如结合二分法)构成混合算法, 以平衡速度与安全性. 
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection*{总结}
+
+本次实验揭示了单点迭代方法中理论与实践的典型差距: \textbf{牛顿法虽然局部最快, 但不适合盲目使用}; \textbf{割线法以稍慢的超线性速度换取了卓越的全局收敛性}, 是无导数条件下的可靠选择; \textbf{不动点迭代仅在精心构造的压缩映射下可用, 通常仅作为理论工具或特定问题的定制求解器}. 在实际数值计算中, 若无法提供足够靠近根的初值, 应优先考虑割线法或带有全局化策略的牛顿型混合方法, 以确保算法的鲁棒性. 
+
+\section{任务6: AI 协作反思报告}
+\begin{enumerate}[rightmargin=0.5cm]
+    \item 我使用 AI 的环节: 生成不动点迭代初始代码、询问 MATLAB 语法(如 `fprintf` 格式化输出)、解释割线法原理、帮助检查代码逻辑错误. 
+    \item AI 错误案例: 任务2中 AI 生成的代码未检查发散, 也未返回迭代历史; 我通过运行发现格式 $\varphi_2$ 发散时程序死循环, 手动添加了发散检测和最大退出机制. 
+    \item 在数值计算学习中, AI 是高效的代码草稿生成器和语法查询工具, 但不能替代对算法原理的理解、收敛性分析和临界错误排查. 人类必须掌握理论并批判性验证 AI 输出. 
+\end{enumerate}
+
+\section{附加任务: Newton下山法改进}
+尝试使用Newton下山法改进坏初值问题. 在Newton迭代中加入下山因子 $\lambda$: 
+\[
+x_{k+1} = x_k - \lambda \frac{f(x_k)}{f'(x_k)},\quad 0<\lambda\le 1.
+\]
+当 $|f(x_{k+1})| < |f(x_k)|$ 时接受该步, 否则减小 $\lambda$. 
+
+我们编制Matlab程序(见\texttt{newton\_downhill\_method.m})进行测试, 结果如下:
+\begin{lstlisting}
+================ 标准牛顿法 (坏初值) ================
+x0=         5  未收敛! 停在 x=0.998322024776, |f(x)|=2.716e+00
+x0=       100  未收敛! 停在 x=0.998322024776, |f(x)|=2.716e+00
+x0=       -50  未收敛! 停在 x=-2.387288279040, |f(x)|=1.793e+00
+x0=     1e+06  未收敛! 停在 x=0.998322024776, |f(x)|=2.716e+00
+
+============== Newton 下山法 (坏初值) ===============
+参数: 初始λ=1, 缩减因子=0.5, 最小λ=1e-12
+
+x0=         5  λ过小, 终止.
+x0=       100  λ过小, 终止.
+x0=       -50  收敛于 -0.031551101430 (步数 10)
+x0=     1e+06  收敛于 -0.031551101430 (步数 11)
+\end{lstlisting}
+
+对于初值 $x_0=5$、$100$ 和 $10^6$, 标准牛顿法均迅速陷入 $x\approx 0.998322$ 的稳定循环, 而对 $x_0=-50$ 则落入 $x\approx -2.387288$, 这两处函数值的绝对值分别高达约 $2.716$ 和 $1.793$, 远未满足方程, 说明这些点并非方程的根, 而是牛顿迭代动力系统固有的 2-周期伪吸引子. 其成因在于, 当 $x$ 远离零点时, 函数 $f(x)$ 渐近于线性增长($0.5x$ 项占主导), 导数 $f'(x)$ 趋近于 0.5, 牛顿步长近似为一个与当前点无关的常数跳跃, 导致迭代在正负大值之间反复震荡并被周期轨道捕获, 丧失了全局收敛性. 
+
+Newton 下山法通过强制执行 $|f(x_{k+1})|<|f(x_k)|$ 来打破这种锁死. 在本实验中, 当初值选为 $-50$ 和 $10^6$ 时, 尽管初始函数值巨大, 算法通过反复对分步长 $\lambda$, 始终找到了使残差单调下降的方向, 最终将序列拉入根的二次收敛区域, 并在 10‑11 步内收敛到正确根 $-0.03155$. 然而, 对于初值 $x_0=5$ 和 $x_0=100$, 下山法却未能奏效, $\lambda$ 迅速折半至低于预设的极小值 $10^{-12}$ 而强制终止, 这表明牛顿方向在这类点处本身并非一个可以减小 $|f|$ 的下降方向, 此时无论沿该方向走多小的一步, 函数绝对值都无法减小, 单纯缩短步长的策略便失灵了. 
+
+尽管存在上述少数失效情形, 下山法依然极大提升了牛顿迭代的全局安全性. 实验说明, 方程在实数轴上严格单调且导数恒正, 理论上本应易于求解, 但牛顿法的局部超调将其带入周期循环, 而下山法则将绝大多数极端初值拉回至根. 为彻底消除对个别“顽固”初值的失败, 可引入混合策略：当下山法连续若干次缩小 $\lambda$ 仍无法满足下降条件时, 临时切换至二分法或割线法等不依赖方向的保守方法, 先获得一个更靠近根的估计, 再切换回快速的牛顿迭代. 这种 Newton‑二分混合算法不仅保留了二阶收敛的速度优势, 也获得了绝对可靠的全局收敛性, 是实际工程计算中最常用的非线性方程求解方案之一. 
+
+
+
+\end{document}

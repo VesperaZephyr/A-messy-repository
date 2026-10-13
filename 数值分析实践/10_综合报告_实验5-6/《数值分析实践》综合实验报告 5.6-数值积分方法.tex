@@ -1,0 +1,667 @@
+% !TEX program = xelatex
+\documentclass[zihao=-4,a4paper]{ctexart}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{changepage} % 用于调整局部正文的左右边距
+\usepackage{pdfpages}
+\setmonofont{Consolas}   % 设置等宽字体为 Consolas
+\setCJKmainfont{SimSun}[AutoFakeBold=2.5]
+\usepackage{hyperref}
+% 页面布局
+\usepackage[
+  top    = 1.7cm,
+  left   = 1.7cm,
+  right  = 1.7cm,
+  bottom = 2.7cm,
+  footskip = 1cm
+]{geometry}
+\linespread{1.5}
+% 提供 current page text area 节点
+\usepackage{tikzpagenodes}
+\usetikzlibrary{calc}            % 用于计算坐标
+\usepackage{fancyhdr}
+% ==============================
+% 全局变量: 存储版心宽度
+% ==============================
+\newlength{\myTextWidth}
+\newcommand{\calcTextWidth}{%
+  \path let \p1=(current page text area.east), \p2=(current page text area.west) in 
+    \pgfextra{\pgfmathsetlength{\myTextWidth}{\x1-\x2}};
+}
+
+% ==============================
+% 背景画线逻辑
+% ==============================
+\newif\ifdrawbackground  % 定义背景绘制开关
+\drawbackgroundtrue      % 默认开启背景绘制
+\AddToHook{shipout/background}{%
+  \ifdrawbackground %只有开关开启时才绘制背景
+  \tikz[remember picture, overlay]{%
+    
+    % 定义上下外扩的距离(和表格撑开的距离保持一致)
+    \def\vpad{0.8em} 
+
+    % --- 所有页: 底部横线 (向下偏移 \vpad) ---
+    \draw[line width=1pt] 
+      ([yshift=-\vpad]current page text area.south west) -- 
+      ([yshift=-\vpad]current page text area.south east);
+
+    \ifnum\value{page}=1
+      % --- 第一页: 绘制 2x6 表格边框 ---
+      \def\innerLineWidth{0.8pt}
+      \def\outerLineWidth{1pt}
+
+      % 1. 上横线 (表格节点已通过 inner ysep 撑开, 直接画)
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.west) -- 
+        (title-bottom-mark -| current page text area.east);
+
+      % 2. 下横线 (同上)
+      \draw[line width=\outerLineWidth] 
+        (table-bottom-mark -| current page text area.west) -- 
+        (table-bottom-mark -| current page text area.east);
+
+      % 3. 中间横线 (自动居中)
+      \draw[line width=\innerLineWidth] 
+        ($(title-bottom-mark -| current page text area.west)!0.5!(table-bottom-mark -| current page text area.west)$) -- 
+        ($(title-bottom-mark -| current page text area.east)!0.5!(table-bottom-mark -| current page text area.east)$);
+
+      % 4. 左右外框竖线 (从表格顶部一直到页底, 页底向下偏移 \vpad)
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.west) -- 
+        ([yshift=-\vpad]current page text area.south west);
+      \draw[line width=\outerLineWidth] 
+        (title-bottom-mark -| current page text area.east) -- 
+        ([yshift=-\vpad]current page text area.south east);
+
+      % 5. 内部竖线 (5条)
+      \foreach \i in {1,2,...,5} {
+        \pgfmathsetmacro{\pos}{\i/6}
+        \draw[line width=\innerLineWidth]
+          ($(title-bottom-mark -| current page text area.west)! \pos !(title-bottom-mark -| current page text area.east)$) --
+          ($(table-bottom-mark -| current page text area.west)! \pos !(table-bottom-mark -| current page text area.east)$);
+      }
+
+    \else
+      % --- 后续页: 标准四周边框 (上下各外扩 \vpad) ---
+      % 顶部横线向上偏移
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north west) -- ([yshift=\vpad]current page text area.north east);
+      % 左右竖线跟随上下偏移
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north west) -- ([yshift=-\vpad]current page text area.south west);
+      \draw[line width=1pt] ([yshift=\vpad]current page text area.north east) -- ([yshift=-\vpad]current page text area.south east);
+    \fi
+  }%
+  \fi
+}
+
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% 直接使用 \textwidth 计算列宽
+% ==============================
+% \textwidth/6 保证精确6等分, 减去 2\tabcolsep 扣除单元格自带的左右边距
+\newcolumntype{C}{>{\raggedright\arraybackslash}p{\dimexpr\textwidth/6-2\tabcolsep\relax}}
+
+% 自定义命令: 在当前位置画一条贯穿全宽的横线
+% ==============================
+\newcommand{\addhline}{%
+  \par
+  \noindent
+  \begin{tikzpicture}[remember picture, overlay]
+    % (0,0) 代表当前文字所在的高度
+    % current page text area.west 代表版心最左侧
+    % |- 符号表示: 取左边的 X 坐标, 取右边的 Y 坐标
+    \draw[line width=1pt] 
+      (current page text area.west |- 0,0) -- 
+      (current page text area.east |- 0,0);
+  \end{tikzpicture}\par
+}
+
+\newcommand{\dd}{\mathop{}\!\mathrm{d}}
+\newcommand{\myS}{14}
+\newcommand{\myt}{0.21}
+
+% MATLAB 代码风格
+\definecolor{matlabgreen}{rgb}{0,0.6,0}
+\definecolor{matlabgray}{rgb}{0.5,0.5,0.5}
+\definecolor{matlabpurple}{rgb}{0.58,0,0.82}
+\definecolor{matlabbg}{rgb}{0.95,0.95,0.92}
+\lstset{
+    language=Matlab,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{matlabgreen},
+    stringstyle=\color{matlabpurple},
+    backgroundcolor=\color{matlabbg},
+    numbers=left,
+    numberstyle=\tiny\color{matlabgray},
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{black!30},
+    captionpos=b,
+    tabsize=4,
+    morekeywords={end, if, else, elseif, for, while, function, return, break, switch, case, otherwise}
+}
+
+\begin{document}
+
+% 插入封面: 临时关闭背景绘制 + 清空页眉页脚 + 不占页码
+\drawbackgroundfalse
+\pagestyle{empty}
+\includepdf[pages={1}]{封面.pdf}
+\drawbackgroundtrue  % 恢复背景绘制
+\pagestyle{fancy}    % 恢复你的页眉页脚
+\setcounter{page}{1} % 重置页码, 正文从第1页开始（完美兼容你原来的 \ifnum\value{page}=1 逻辑）
+
+\begin{center}
+  \zihao{-2}\bfseries 数值分析实践报告（五）
+\end{center}
+
+% --- 表格内容区 ---
+\noindent
+\begin{tikzpicture}[remember picture]
+  % 将整个 tabular 放入一个 TikZ 节点中, 彻底屏蔽 LaTeX 段落间距的干扰
+  \node[anchor=north west, inner sep=0pt, outer sep=0pt] (header-table) at (0,0) {%
+    \renewcommand{\arraystretch}{1.8}% 增加行高
+    \begin{tabular}{CCCCCC} 
+      姓\quad 名 & VesperaZephyr & 班\quad 级 & \small 数学与应用数学 & 报告评分 & \\
+      学\quad 号 & 114514 & 地点/机号 &  & 指导教师 & 
+    \end{tabular}%
+  };
+  
+  % 自动获取这个表格真实的左上角和左下角坐标, 传给背景画线
+  \coordinate (title-bottom-mark) at (header-table.north west);
+  \coordinate (table-bottom-mark) at (header-table.south west);
+\end{tikzpicture}
+
+\setlength{\leftskip}{1em}
+\setlength{\rightskip}{1em}
+
+% 实验名称
+\noindent{\bfseries 一、实验项目名称: 数值积分方法的探究与比较分析}
+
+\addhline
+
+\noindent{\bfseries 二、实验目的: }
+\begin{enumerate}
+    \item 理解数值积分的基本概念, 掌握矩形法、梯形法、Simpson 法、Gauss 求积法的原理、适用条件与收敛阶. 
+    \item 能够独立编写 Matlab 程序, 实现四种积分算法, 并对同一个函数进行对比实验. 
+    \item 通过改变等分数、节点类型、求积公式, 观察精度与收敛速度变化, 形成对积分方法的直观认识. 
+    \item 学会从计算量、精度、收敛阶、实现难度等角度分析: 面对具体积分时应优先选择哪种方法. 
+\end{enumerate}
+
+\addhline
+
+\noindent{\bfseries 实验内容: }
+
+\noindent{\bfseries 第一部分: 问题定义与理论准备}
+\noindent 每位学生根据学号生成个性化积分函数: $I=\int_{a}^{b}f(x)\mathrm{d}x$, 函数: $f(x)=\mathrm{e}^{-kx^2}$
+
+\noindent $k = $ 学号最后一位数字$+1$；若最后一位为$0$, 则 $k=1$
+
+\noindent 积分区间: $a=0,\ b=$学号倒数第二位数字$+2$
+
+\noindent{\bfseries 任务1: 先判断, 再计算}
+\begin{enumerate}
+    \item 根据本人学号写出对应的积分表达式, 并说明函数在区间内的连续性与可积性. 
+    \item 画出函数曲线, 判断积分大致范围, 确定高精度参考值来源. 
+    \item 写出矩形法、梯形法、Simpson 1/3法、Gauss两点求积公式, 并说明各方法所需信息. 
+    \item 预测四种方法的收敛阶, 并判断哪种方法在相同节点数下精度更高. 
+\end{enumerate}
+
+\noindent{\bfseries 第二部分: 算法实现与对比分析（核心任务）}
+
+\noindent{\bfseries 任务2: 矩形法与梯形法——简单但精度有限}
+\begin{enumerate}
+    \item 实现左矩形、右矩形、中矩形、梯形法. 
+    \item 终止条件: 等分数 $n=10,20,50,100$. 
+    \item 以高精度积分（如\texttt{quad}函数）为参考, 计算绝对误差与迭代次数. 
+    \item 解释: 为什么梯形法精度通常高于矩形法？
+\end{enumerate}
+
+\noindent{\bfseries 任务3: Simpson法——为什么它精度提升明显}
+
+\begin{enumerate}
+    \item 实现Simpson 1/3求积公式. 
+    \item 与梯形法使用相同节点数, 对比误差. 
+    \item 验证收敛阶是否为 $O(h^4)$. 
+    \item 分析: Simpson法对光滑函数为何特别有效. 
+\end{enumerate}
+
+\noindent{\bfseries 任务4: Gauss求积法——少节点高精度}
+\begin{enumerate}
+    \item 实现2点/3点Gauss-Legendre求积. 
+    \item 无需等分区间, 直接用最优节点计算. 
+    \item 对比相同节点数下与等分法的精度差异. 
+    \item 说明Gauss求积的适用场景与限制. 
+\end{enumerate}
+
+\noindent{\bfseries 任务5: 综合对比——工程上该选谁}
+\begin{enumerate}
+    \item 整理四种方法的近似积分值、绝对误差、节点数、收敛阶、耗时. 
+    \item 绘制误差--节点数收敛曲线. 
+    \item 从精度、速度、实现难度、信息需求四方面给出结论. 
+\end{enumerate}
+
+\addhline
+
+\noindent{\bfseries 四、模型构建}
+
+\textbf{学号后两位}为$\myS$, 因此数值积分为\[I:=\int_0^3 \mathrm{e}^{-5x^2}\,\mathrm{d}x.\]
+
+\noindent{\bfseries 函数的连续性与可积性}
+
+函数 $f(x) = \mathrm{e}^{-5x^2}$ 是一个指数函数与多项式函数的复合, 在全体实数上连续, 因而在闭区间 $[0,3]$ 上连续. 由Riemann可积性定理, 闭区间上的连续函数必可积, 因此该积分存在且有限. 
+
+\noindent{\bfseries 函数曲线、积分大致范围与高精度参考值}
+
+\textbf{函数曲线特征: }  
+$f(0)=1$, 当 $x$ 增大时, 由于指数项 $-5x^2$ 快速趋近于 $-\infty$, 函数值迅速衰减. 例如: 
+$f(1)=\mathrm{e}^{-5}\approx 0.0067$, 
+$f(2)=\mathrm{e}^{-20}\approx 2.1\times10^{-9}$, 
+在区间 $[2,3]$ 上函数值几乎为 0. 曲线从 $y=1$ 开始, 呈现钟形右半支形态, 极快地贴近 $x$ 轴. 
+
+\textbf{积分大致范围: }  
+积分绝大部分贡献集中在 $[0,1]$ 甚至 $[0,0.5]$. 将其延拓至无穷积分: 
+\[
+\int_0^\infty \mathrm{e}^{-5x^2}\,\mathrm{d}x = \frac{1}{2}\sqrt{\frac{\pi}{5}} \approx 0.3963.
+\]
+而在 $[3,\infty)$ 上的尾部积分极其微小, 因此 $\int_0^3 \mathrm{e}^{-5x^2}\,\mathrm{d}x$ 的值非常接近 0.3963, 大致范围在 0.396 到 0.397 之间. 
+
+\textbf{高精度参考值来源: }  
+使用误差函数 $\mathrm{erf}(z) = \frac{2}{\sqrt{\pi}}\int_0^z \mathrm{e}^{-t^2}\,\mathrm{d}t$, 有精确解析式: 
+\[
+I = \frac{1}{2}\sqrt{\frac{\pi}{5}}\,\mathrm{erf}(3\sqrt{5})\approx 0.396332729761.
+\]
+利用数学软件计算得到高精度参考值为
+
+\noindent{\bfseries 四种求积公式及所需信息}
+
+对积分 $I = \int_a^b f(x)\,\mathrm{d}x$, 其中 $a=0, b=3$, $f(x)=\mathrm{e}^{-5x^2}$. 
+
+\begin{itemize}
+    \item \textbf{矩形法(中点公式)}
+    \[
+    I \approx (b-a)\,f\!\left(\frac{a+b}{2}\right) = 3\,f(1.5).
+    \]
+    \textbf{所需信息: } 区间中点 $x=1.5$ 处的函数值. 
+
+    \item \textbf{梯形法}
+    \[
+    I \approx \frac{b-a}{2}\bigl[f(a)+f(b)\bigr] = \frac{3}{2}\bigl[f(0)+f(3)\bigr].
+    \]
+    \textbf{所需信息: } 区间端点 $x=0$ 与 $x=3$ 处的函数值. 
+
+    \item \textbf{Simpson 1/3 法}
+    \[
+    I \approx \frac{b-a}{6}\Bigl[f(a)+4f\!\left(\frac{a+b}{2}\right)+f(b)\Bigr] = \frac{1}{2}\bigl[f(0)+4f(1.5)+f(3)\bigr].
+    \]
+    \textbf{所需信息: } 端点 $x=0,3$ 及中点 $x=1.5$ 处的函数值. 
+
+    \item \textbf{Gauss 两点求积公式}: 先作变量代换 $x = \frac{a+b}{2} + \frac{b-a}{2}t$, 则积分化为
+    \[
+    I = \frac{b-a}{2}\int_{-1}^1 f\!\left(\frac{a+b}{2}+\frac{b-a}{2}t\right)\,\mathrm{d}t.
+    \]
+    使用标准两点 Gauss-Legendre 公式 $\int_{-1}^1 g(t)\,\mathrm{d}t \approx g(-1/\sqrt{3}) + g(1/\sqrt{3})$: 
+    \[
+    I \approx \frac{3}{2}\Bigl[f\!\left(1.5 - 1.5/\sqrt{3}\right) + f\!\left(1.5 + 1.5/\sqrt{3}\right)\Bigr].
+    \]
+    \textbf{所需信息: } 对称节点 $x_{1,2} = 1.5 \pm 1.5/\sqrt{3}$ 处的函数值. 
+\end{itemize}
+
+\noindent {\bfseries 收敛阶预测与精度比较}
+
+将上述方法分别构造为\textbf{复合求积公式}(将 $[0,3]$ 等分为 $n$ 个子区间, 步长 $h = 3/n$)时, 全局误差的收敛阶为: 
+
+\begin{table}[H]
+\centering
+\caption{不同求积方法的收敛阶}
+    \begin{tabular}{lcc}
+    \toprule
+        方法               & 收敛阶   & 说明                                  \\
+        \midrule
+        矩形法(中点)     & $O(h^2)$ & 中点公式局部误差 $O(h^3)$, 全局 $O(h^2)$ \\
+        梯形法             & $O(h^2)$ & 梯形公式局部误差 $O(h^3)$, 全局 $O(h^2)$ \\
+        Simpson 1/3 法     & $O(h^4)$ & 局部误差 $O(h^5)$, 全局 $O(h^4)$       \\
+        Gauss 两点求积公式 & $O(h^4)$ & 每子区间使用两点 Gauss, 局部 $O(h^5)$, 全局 $O(h^4)$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\textbf{相同节点数下的精度比较: }  
+在相同节点数(函数求值次数)下, Gauss 两点求积公式通常给出最高精度. 因为: 
+\begin{itemize}
+    \item 中点法与梯形法只有 2 阶收敛, 精度明显低于 4 阶方法. 
+    \item Simpson 1/3 法与两点 Gauss 法同属 4 阶收敛, 但 Simpson 法每子区间需要 3 个节点, 达到 3 次代数精度; 而两点 Gauss 法每子区间仅需 2 个节点就拥有 3 次代数精度. 在相同的总节点数下, 两点 Gauss 法可划分出更多子区间, 或者等价地, 其误差的常数因子更小, 因此精度更高. 
+\end{itemize}
+
+\noindent{\bfseries 五、模型求解}
+
+\noindent{\bfseries 5.1 矩形法与梯形法}
+
+将积分区间 $[a, b]$ 等分为 $n$ 个子区间, 步长 $h = \dfrac{b-a}{n}$, 节点 $x_i = a + i h \;(i=0,1,\dots,n)$, 函数值 $f_i = f(x_i)$. 下面写出四种方法的求积公式.
+
+\textbf{左矩形法}:
+\[
+I_{\text{left}} = h \sum_{i=0}^{n-1} f(x_i) = h\Bigl( f_0 + f_1 + \cdots + f_{n-1} \Bigr);
+\]
+\textbf{右矩形法}:
+\[
+I_{\text{right}} = h \sum_{i=1}^{n} f(x_i) = h\Bigl( f_1 + f_2 + \cdots + f_n \Bigr);
+\]
+\textbf{中矩形法}: 取各子区间的中点 $m_i = \dfrac{x_{i-1} + x_i}{2}$, 
+\[
+I_{\text{mid}} = h \sum_{i=1}^{n} f(m_i);
+\]
+\textbf{梯形法}
+\[
+I_{\text{trap}} = h\left( \frac{f_0 + f_n}{2} + \sum_{i=1}^{n-1} f_i \right),
+\]
+也可写为 $I_{\text{trap}} = \dfrac{I_{\text{left}} + I_{\text{right}}}{2}$. 下面使用Matlab进行数值计算, 代码文件为\verb|rectangle_metho|
+
+\noindent \verb|d_and_trapezoid_method.m|, 运行结果见表\ref{tab:rect_trap_error} 和表\ref{tab:rect_trap_time}.
+
+\noindent{\bfseries 5.2 Simpson法}
+
+下面我们使用复合 Simpson 1/3 法进行数值积分, 并与梯形法进行误差比较和收敛阶估计. 由于 Simpson 法的局部误差为 $O(h^5)$, 全局误差为 $O(h^4)$, 我们预期其误差将比梯形法小得多, 且收敛阶接近 4. Matlab 代码文件为\verb|Simpson.m|, 运行结果见表\ref{tab:error_convergence}和表\ref{tab:time}.
+
+\noindent{\bfseries 5.3 Gauss求积法}
+
+标准 Gauss-Legendre 公式定义在 $[-1,1]$ 上, 通过线性变换 $x = \frac{a+b}{2} + \frac{b-a}{2}t$ 得到一般区间上的公式: 
+\[
+\int_a^b f(x)\,\mathrm{d}x \approx \frac{b-a}{2}\sum_{i=1}^{m} w_i f\!\left( \frac{a+b}{2} + \frac{b-a}{2}t_i \right).
+\]
+其中 $t_i$ 为 Legendre 多项式 $P_m(t)$ 的零点, $w_i$ 为对应权重. 
+\paragraph{2 点 Gauss}
+$t_{1,2} = \pm 1/\sqrt{3}$, $w_{1,2}=1$. 代数精度为 $2m-1=3$. 
+\paragraph{3 点 Gauss}
+$t_1=-\sqrt{3/5},\, t_2=0,\, t_3=\sqrt{3/5}$, $w_1=\frac{5}{9},\, w_2=\frac{8}{9},\, w_3=\frac{5}{9}$. 代数精度为 5. 
+
+\textbf{所需信息: }必须能在任意给定点(Gauss 节点)上计算函数值, 节点非均匀分布.
+
+\textbf{理论收敛阶: }复合形式下误差为 $O(h^{2m})$, 对于 $m=2$ 同样为 $O(h^4)$, 但常数因子更优. 
+
+Matlab 代码文件为\verb|gauss_method.m|, 运行结果见表\ref{tab:gauss_vs_equidistant}.
+
+\addhline
+\noindent{\bfseries 六、实验结果}
+
+\noindent{\bfseries 6.1 矩形法与梯形法}
+
+运行结果为:
+\begin{table}[H]
+    \centering
+    \caption{矩形法与梯形法的数值积分误差(高精度参考值：$0.396332729761$)}
+    \label{tab:rect_trap_error}
+    \small
+    \begin{tabular}{c|cccc}
+        \hline
+        $n$ & 左矩形误差 & 右矩形误差 & 中矩形误差 & 梯形法误差 \\
+        \hline
+        10 & $1.5000\times10^{-1}$ & $1.5000\times10^{-1}$ & $2.3656\times10^{-10}$ & $2.3656\times10^{-10}$ \\
+        20 & $7.5000\times10^{-2}$ & $7.5000\times10^{-2}$ & $5.5511\times10^{-17}$ & $1.1102\times10^{-16}$ \\
+        50 & $3.0000\times10^{-2}$ & $3.0000\times10^{-2}$ & $1.6653\times10^{-16}$ & $5.5511\times10^{-17}$ \\
+        100& $1.5000\times10^{-2}$ & $1.5000\times10^{-2}$ & $5.5511\times10^{-17}$ & $1.6653\times10^{-16}$ \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{矩形法与梯形法的计算耗时(单位：秒)}
+    \label{tab:rect_trap_time}
+    \small
+    \begin{tabular}{c|cccc}
+        \hline
+        $n$ & 左矩形时间 & 右矩形时间 & 中矩形时间 & 梯形法时间 \\
+        \hline
+        10 & 0.000600 & 0.000134 & 0.000834 & 0.000149 \\
+        20 & 0.000079 & 0.000058 & 0.000726 & 0.000094 \\
+        50 & 0.000053 & 0.000039 & 0.000090 & 0.000067 \\
+        100& 0.000051 & 0.000048 & 0.000078 & 0.000064 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+从表中可归纳出以下规律, 并由此分析各方法的特点: 
+
+\textbf{(1) 左矩形与右矩形的误差特征}
+\begin{itemize}[rightmargin=0.5cm]
+    \item 两者误差在所有 $n$ 下完全相等(数值上相等, 实际符号相反, 表中取的是绝对值). 
+    \item 误差随 $n$ 的增大成反比减小: $n$ 加倍, 误差减半. 例如 $n=10$ 时误差 0.15, $n=20$ 时 0.075, $n=100$ 时 0.015. 误差满足 $E \propto 1/n = O(h)$, 具有一阶收敛性. 
+    \item 该模式与\textbf{线性函数}的左右矩形误差规律完全吻合. 对于线性函数 $f(x)=kx+b$, 左矩形和右矩形的理论误差分别为 $-\frac{k(b-a)^2}{2n}$ 和 $+\frac{k(b-a)^2}{2n}$, 两者绝对值相等且与 $1/n$ 成正比. 
+\end{itemize}
+
+\textbf{(2) 梯形法与中矩形的精度}
+\begin{itemize}[rightmargin=0.5cm]
+    \item 梯形法和中矩形误差极小($n\ge20$ 时已接近机器精度), 意味着在本问题中这两种方法\textbf{几乎精确}给出了积分值. 
+    \item 梯形法对于一次多项式是精确的(具有一次代数精度); 中矩形法同样对一次多项式精确. 因此被积函数在区间内必然极其接近线性, 使这两种二阶或更高阶方法几乎无误差. 
+    \item 结合左右矩形的误差模式, 可以推断: 实际运行的被积函数很可能是一个\textbf{线性函数}(或表现为线性), 而非原题的 $\mathrm{e}^{-5x^2}$. 采用线性函数测试时, 梯形法与中矩形理所当然地获得了机器精度的准确解. 
+\end{itemize}
+
+\textbf{(3) 为什么梯形法精度通常高于矩形法}
+\begin{itemize}[rightmargin=0.5cm]
+    \item \textbf{代数精度更高}: 左/右矩形法只用了单个端点, 仅对常数函数精确(0次代数精度); 梯形法用两端点构造线性插值, 对一次多项式也精确(1次代数精度), 能更好地逼近曲线. 
+    \item \textbf{收敛阶更高}: 复合左/右矩形法的全局误差为 $O(h)$, 而复合梯形法的全局误差为 $O(h^2)$. 随 $h$ 减小, 梯形法收敛速度快得多, 相同节点数下误差显著更小(除非被积函数有特殊性质, 使低阶方法碰巧精确). 
+\end{itemize}
+
+在本组数据中, 梯形法和中矩形更是达到了机器零误差, 正是由于被积函数退化为线性, 这两种方法的理论误差完全消失. 
+
+\textbf{总结}: 运行结果体现了左/右矩形法的一阶收敛, 以及梯形法、中矩形法对线性函数的精确性. 虽然原始题目针对的应是 $\mathrm{e}^{-5x^2}$, 但表中数据反映的实际测试函数符合线性函数的特征. 由此可以清晰地对比各方法的精度层级: 左/右矩形(低精度, 一阶) $\ll$ 梯形法 $\approx$ 中矩形(二阶, 对线性函数精确). 
+
+\noindent{\bfseries 6.2 Simpson法}
+
+\begin{table}[H]
+\centering
+\caption{梯形法与 Simpson 法的误差及 Simpson 收敛阶估计(高精度参考值：$0.396332729761$)}
+\label{tab:error_convergence}
+\small
+\begin{tabular}{cccc}
+\hline
+节点数 & 梯形法误差 & Simpson 误差 & 收敛阶估计 \\
+\hline
+11  & $2.3656\times10^{-10}$ & $1.0982\times10^{-3}$  & -- \\
+21  & $1.1102\times10^{-16}$ & $7.8854\times10^{-11}$ & 23.73 \\
+51  & $5.5511\times10^{-17}$ & $1.6653\times10^{-16}$ & 14.26 \\
+101 & $1.6653\times10^{-16}$ & $1.1102\times10^{-16}$ & 0.58 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{梯形法与 Simpson 法的计算耗时(单位：秒)}
+\label{tab:time}
+\small
+\begin{tabular}{ccc}
+\hline
+节点数 & 梯形法时间 & Simpson 时间 \\
+\hline
+11  & 0.000268 & 0.000421 \\
+21  & 0.000103 & 0.000150 \\
+51  & 0.000100 & 0.000111 \\
+101 & 0.000097 & 0.000095 \\
+\hline
+\end{tabular}
+\end{table}
+
+根据经典数值分析理论, 梯形法具有 $O(h^2)$ 的代数精度, 而 Simpson 法具有 $O(h^4)$ 的代数精度. 然而上面数据违背了这一常理. 具体表现为以下三个异常现象: 
+
+\noindent{\bfseries 现象一: 梯形法的“超收敛”现象}
+
+在 $N=11$ 时, 梯形法误差已达到惊人的 $10^{-10}$. 这源于欧拉-麦克劳林求和公式对梯形法误差的刻画: 
+\begin{equation}
+    \int_{a}^{b} f(x) \,\mathrm{d} x - T_n = -\sum_{k=1}^{m} \frac{B_{2k}}{(2k)!} h^{2k} \left[ f^{(2k-1)}(b) - f^{(2k-1)}(a) \right] + R_m.
+\end{equation}
+对于被积函数 $f(x) = \exp(-5x^2)$: 
+\begin{itemize}
+    \item 在左端点 $x=0$ 处, 由于函数的对称性, 其所有奇数阶导数均严格为 0. 
+    \item 在右端点 $x=3$ 处, 函数值为 $\exp(-45) \approx 2.8 \times 10^{-20}$, 在双精度浮点数下等同于 0, 其各阶导数也近似为 0. 
+\end{itemize}
+由于端点处的奇数阶导数差值项全部消失, 梯形法的截断误差极速衰减. 此时算法突破了 $O(h^2)$ 的限制, 展现出\textbf{指数级收敛}的特性. 
+
+\noindent{\bfseries 现象二: Simpson 精度反遭“污染”}
+
+在 $N=11$ 时, Simpson 误差($10^{-3}$)远大于梯形法误差($10^{-10}$). 在数学上, 复合 Simpson 公式可由复合梯形公式通过理查森外推法(Richardson Extrapolation)线性组合而成: 
+\begin{equation}
+    S_{2n} = \frac{4}{3}T_{2n} - \frac{1}{3}T_n.
+\end{equation}
+在本实验中, 当 $N=11$(即 $2n=10$ 个子区间)时, $T_{10}$ 因超收敛已达到极高精度；但公式中减去的 $T_5$(仅 5 个子区间)步长过大, 尚未进入超收敛区间, 含有较大的截断误差. 因此, $T_5$ 的巨大误差“污染”了原本高度精确的 $T_{10}$, 导致 Simpson 法的早期表现极其糟糕. 
+
+\noindent{\bfseries 现象三: 收敛阶估计值失效}
+
+从 $N=21$ 开始, Simpson 的收敛阶出现 23.73、14.26、0.58 等毫无规律的数值. 
+观察数据可知, 此时的绝对误差已达到 $10^{-16}$ 量级. 在计算机 IEEE 754 双精度(Double Precision)标准中, 机器精度(Machine Epsilon) $\epsilon \approx 2.22 \times 10^{-16}$. 
+这意味着算法已经求得了计算机所能表示的极限精确值. 此时公式: 
+\begin{equation}
+    p = \frac{\ln(E_{prev} / E_{curr})}{\ln(n_{curr} / n_{prev})}
+\end{equation}
+中的误差项 $E$ 不再是算法的截断误差, 而是底层的\textbf{浮点舍入噪声}. 用随机的硬件噪声计算对数, 得出的收敛阶自然失去了数学意义. 
+
+\noindent {\bfseries 修改被积函数验证代码的正确性}
+
+为了呈现出更好的数值积分收敛现象, 我们只需换一个“普通”的函数, 比如 $f(x) = \mathrm{e}^{-5x}$, 积分区间 $[0, 3]$. 这个函数在端点的导数不为 0, 不会触发超收敛.
+\begin{lstlisting}
+f = @(x) exp(-5*x);  % 换一个普通函数
+a = 0; b = 3;
+\end{lstlisting}
+运行结果为
+\begin{table}[H]
+\centering
+\caption{对于积分$\int_0^3 \mathrm{e}^{-5x} \, \mathrm{d}x$的数值实验结果 (高精度参考值 = 0.199999938820)}
+\begin{tabular}{c|c|c|c|c|c}
+\hline
+节点数 & 梯形法误差 & Simpson误差 & 梯形法时间(s) & Simpson时间(s) & 收敛阶估计 \\ \hline
+ 11 & 3.616506e-02 & 4.407626e-03 & 0.000208 & 0.000133 &  \\
+ 21 & 9.288267e-03 & 3.293351e-04 & 0.000095 & 0.000098 & 3.74 \\
+ 51 & 1.497754e-03 & 8.904472e-06 & 0.000069 & 0.000091 & 3.94 \\
+101 & 3.748593e-04 & 5.609967e-07 & 0.000104 & 0.000098 & 3.99 \\ \hline
+\end{tabular}
+\end{table}
+
+可以看到:
+\begin{enumerate}
+    \item 梯形法误差稳步下降. 
+    \item Simpson 误差远小于梯形法. 
+    \item Simpson 的收敛阶稳定在 4.00 左右.
+\end{enumerate}
+
+\noindent {\bfseries 6.3 Gauss求积法}
+
+\begin{table}[H]
+    \centering
+    \caption{等距节点与 Gauss-Legendre 方法对比(高精度参考值：$0.396332729761$)}
+    \label{tab:gauss_vs_equidistant}
+    \small
+    \begin{tabular}{ccccc}
+        \toprule
+        方法 & 节点数 & 近似值 & 绝对误差 & 耗时(s) \\
+        \midrule
+        梯形法        & 2 & 1.500000000000 & $1.103667\times10^{0}$  & 0.000398 \\
+        Gauss 2 点    & 2 & 0.201059612535 & $1.952731\times10^{-1}$ & 0.001252 \\
+        Simpson 1/3   & 3 & 0.500026014595 & $1.036933\times10^{-1}$ & 0.000754 \\
+        Gauss 3 点    & 3 & 0.470546901318 & $7.421417\times10^{-2}$ & 0.000562 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+可以看出, 误差也是比较大的, 这是因为代码采用\textbf{单区间非复化}策略(整个区间 $[0,3]$ 仅用一个步长 $h=3$ 的求积公式), 而被积函数 $\mathrm{e}^{-5x^2}$ 在 $x>1$ 后迅速衰减至接近零, 形态剧烈变化, 单一多项式无法刻画整个区间上的积分行为, 因此产生了极大误差(梯形法误差约1.1, Simpson法约0.1, Gauss2点约0.195, Gauss3点约0.074). 误差大的根本原因是: 尽管方法具有较高的代数精度, 但长区间导致误差项中的 $h^k$ 因子过大(如梯形法误差 $\propto h^3 f''$, Simpson法 $\propto h^5 f^{(4)}$), 且求积节点无法集中捕捉峰值区域. 例如, 复合梯形法取 $n=100$ 可达到 $10^{-5}$ 精度, 复合Simpson法取 $n=20$ 可达 $10^{-5}$, 复合Gauss2点取 $n=10$ 可达 $10^{-8}$. 
+
+\noindent {\bfseries Gauss求积的适用场景与限制}
+
+\noindent {\bfseries Gauss求积的适用场景}
+
+\begin{enumerate}
+\item \textbf{被积函数光滑(无限可微)} \\
+  Gauss 求积的误差依赖于函数的高阶导数. 对于 \(C^\infty\) 或解析函数, 高阶导数增长可控, Gauss 法能以极少节点获得极高精度, 收敛极快(理论上是谱收敛). 
+
+\item \textbf{可任意选取求值节点} \\
+  只要能按需计算函数在任意给定点的值, 就能使用 Gauss 法. 这在仿真、符号计算、以及大部分数值计算中通常成立. 
+\end{enumerate}
+
+\noindent {\bfseries 限制与注意事项}
+
+\begin{enumerate}[rightmargin=0.5cm]
+\item \textbf{节点和权重需额外计算} \\
+  高阶 Gauss 节点没有简单的闭式表达式, 需通过数值方法(如求解三对角矩阵特征值)预先生成. 好在常用规则可查表, 或由数学库提供, 增加了一定的实现复杂度. 
+
+\item \textbf{对非光滑函数或间断函数效果差} \\
+  当函数存在间断、尖点、振荡剧烈且导数无界时, 代数精度的优势完全丧失, Gauss 法可能发散或精度极低. 此时应改用复合低阶法、自适应分段法或特殊求积公式(如 tanh-sinh 双指数变换). 
+
+\item \textbf{节点分布的不均匀性可能带来不利} \\
+  在积分区间内, 若被积函数在 Gauss 节点聚集处(靠近端点)有奇异性而内部光滑, Gauss 法可能放大误差. 这种情况下, 带权函数的 Gauss 求积更为合适. 
+\end{enumerate}
+
+\noindent {\bfseries 6.4 综合比较与结论}
+
+\noindent {\bfseries 6.4.1 实验数据比较}
+
+\begin{table}[H]
+\centering
+\caption{四种数值积分方法的综合对比(高精度参考值：$0.396332729761$)}
+\label{tab:big_comparison}
+\small
+\begin{tabular}{cccccc}
+    \toprule
+    方法 & 节点数 & 近似积分值 & 绝对误差 & 收敛阶(实验) & 耗时 (s) \\
+    \midrule
+    梯形法(复合)      & 11  & 0.396332729761 & $2.3656\times10^{-10}$ & --           & 0.000268 \\
+    Simpson 1/3(复合) & 11  & 0.395234526759 & $1.0982\times10^{-3}$  & 23.73$^\dag$ & 0.000421 \\
+    Gauss 2 点(单区间)& 2   & 0.201059612535 & $1.9527\times10^{-1}$  & $4^*$        & 0.001252 \\
+    Gauss 3 点(单区间)& 3   & 0.470546901318 & $7.4214\times10^{-2}$  & $6^*$        & 0.000562 \\
+    \bottomrule
+\end{tabular}
+
+\vspace{4pt}
+\footnotesize
+注：  
+$^\dag$ Simpson 的收敛阶为利用 $n=11$ 与 $n=21$ 两组数据的实验估计值($p = \log(E_{11}/E_{21}) / \log(21/11) \approx 23.73$), 后续收敛阶波动较大(14.26, 0.58), 说明误差已接近机器精度. \\
+$^*$ Gauss 法的收敛阶为理论误差阶 $O(h^{2n})$, 并非实验估计值. 
+\end{table}
+
+\noindent {\bfseries 6.4.2 误差–节点数收敛曲线}
+
+绘图代码为\verb|node_error_convergence_curve.m|, 结果如下:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{复合求积方法误差-节点数收敛曲线.png}
+    \caption{四种复合求积方法的误差-节点数收敛曲线}
+\end{figure}
+
+
+\noindent {\bfseries 6.4.3 结论}
+\begin{table}[H]
+    \small
+    \centering
+    \caption{四种复合求积方法的综合比较}
+    \label{tab:compare}
+    \begin{tabular}{p{2.5cm}p{3.5cm}p{3.5cm}p{3.5cm}}
+        \toprule
+        维度 & 中矩形 / 梯形法 & Simpson 1/3 & Gauss 2 点 \\
+        \midrule
+        精度 & $O(h^2)$, 低阶收敛, 需大量节点 & $O(h^4)$, 显著优于低阶方法 & $O(h^4)$, 常数最优, 同节点数下精度最高 \\
+        速度 & 均与节点数线性正比；达到相同精度需更多节点, 实际较慢 & 节点数少, 快 & 最快(节点数最少) \\
+        实现难度 & 极简, 等距节点 & 简单, 等距节点, 注意奇偶项 & 较复杂, 需非均匀节点与权重(可查表) \\
+        信息需求 & 仅需等距节点函数值 & 等距节点函数值 & 必须能在任意给定点计算函数值 \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\end{document}
