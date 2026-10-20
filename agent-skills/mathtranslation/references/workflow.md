@@ -23,13 +23,15 @@ visual comparison.
 
 Use this default order for content when evidence conflicts:
 
-1. published source PDF for the visible mathematical work;
+1. the user-designated published edition for the visible mathematical work;
 2. source TeX for exact markup, labels, citation keys, and macro intent;
-3. errata or an authoritative later edition, when the user wants corrections;
+3. errata or another edition as evidence for a proposed correction, when in scope;
 4. OCR, HTML, notes, or secondary copies as supporting evidence only.
 
 Do not merge editions silently. Record the edition, revision, or date used when
-it is known.
+it is known. If an erratum disagrees with the designated printing, compare both
+on the page image and record the decision; neither a newer note nor OCR silently
+overrides the chosen source. If the user specifies an edition/errata rule, use it.
 
 Presentation has a separate authority. If the user selects the
 MathTranslations template, its TeX governs layout, fonts, semantic environments,
@@ -99,17 +101,43 @@ afterward. Reserve `\termcn` for emphasis that should not create an index row.
 
 ## 5. Translate In Reviewable Units
 
+For book/chapter work use [independent-review.md](independent-review.md) to
+separate translation from source-first review in fresh subagent contexts.
+Do not treat switching role names in the same conversation as isolation.
+
 Work by a coherent unit such as a section or subsection:
 
-1. map headings, environments, labels, citations, figures, and footnotes;
+1. map source and translation headings, environments, numbered items,
+   exercises, citations, figures, diagrams, footnotes and their page spans;
 2. translate the prose while preserving all mathematical dependencies;
 3. compile the unit;
-4. compare it against the corresponding source pages;
-5. update the glossary and issue log;
-6. commit or checkpoint a clean state before moving on.
+4. compare each source paragraph, displayed formula, exercise and footnote
+   against the translation and source page image; mark each unit as matched,
+   corrected, intentionally different with evidence, or unresolved;
+5. inventory diagrams on **both** sides separately, including drawings hidden
+   in arrays/macros and source diagrams absent from the translation; compare
+   node and edge lists, then inspect the rendered result;
+6. update the glossary, coverage ledger and issue log;
+7. commit or checkpoint a clean state before moving on.
 
 Keep units small enough that a missing paragraph, swapped equation, or broken
-reference can be localized quickly.
+reference can be localized quickly. Compare source and translation counts per
+section (numbered statements, exercises, footnotes, diagrams), but investigate
+differences rather than treating equal totals as proof: one omission can cancel
+one spurious addition. Page drift is normal, so align by heading and content,
+not by assuming equal PDF page numbers. OCR is a locator, never the final judge
+of tiny symbols, arrow styles or whether a passage exists.
+
+For a full review, retain a compact ledger with source edition/page, translation
+file/position, unit type, comparison result and evidence. A chapter is only
+"reviewed" when its source range and every section's units are accounted for;
+"repaired" requires every finding to have a disposition; "validated" requires
+the final rebuilt PDF and destination checks. Do not promote one status to the
+next merely because the source compiles.
+For a complete audit of an existing translation, apply the stricter
+[evidence-driven full-review procedure](forensic-review.md), including two
+independent inventories, sentence correspondences, a reverse pass, and a
+recorded challenge pass.
 
 ## 6. Handle Special Content
 
@@ -129,24 +157,21 @@ or `align*` environments and never place multiple `\[ \]` blocks side by side.
 
 ### Figures And Tables
 
-Follow the template's figure priority: when the source PDF is a clean vector
-PDF, re-render the figure region at 400 DPI with `pymupdf` and autocrop it as
-the preferred asset (perfect clarity, no raster blur); redraw simple figures
-with ordinary TikZ; rebuild arrow-and-node diagrams with `tikz-cd` (never
-screenshots of them). Use the project's `tools/figcrop.py` to locate each
-`Fig. N.M` caption and crop its bounding box to `images/fig/fig-X-Y.png`, then
-repoint `\includegraphics` with `tools/rewire_figures.py` (back up `chapters/`
-first). Translate captions and table text without changing data. Preserve labels
-and references. If an asset is missing, use an explicit placeholder and report it
-rather than inventing a replacement.
+Choose representation using [illustrations.md](illustrations.md) and execute
+captures/redraws using [figure-capture.md](figure-capture.md). Preserve suitable
+source vectors as cropped PDF; a 400-DPI PNG is a raster preview, not lossless
+vector reuse. For scans, preserve available detail; redraw with TikZ/PGFPlots
+when the mathematical specification is reliable or editable output is requested.
+Use `scripts/capture_pdf_region.py` from the skill directory for explicit physical
+pages and inspected bounds; do not assume project-specific crop/rewire scripts exist.
+Caption matching and automatic boxes produce candidates, not verified crops.
+Translate captions and table text without changing data; preserve labels and references.
 
-Rebuild commutative diagrams, morphism diagrams, category diagrams, exact
-diagrammatic sequences, and pullback or pushout squares with `tikz-cd`. Match
-the source's node arrangement, arrow direction, arrow style, labels, and
-commutativity.
-
-Record every figure that cannot follow this priority, such as photographs or
-free-form illustrations that TikZ cannot faithfully express.
+Rebuild arrow-and-node diagrams with tikz-cd, following
+[diagram-practice.md](diagram-practice.md). Use captures as source evidence, not
+the final representation of a commutative diagram. For unavailable assets,
+record a placeholder/limitation rather than inventing content. Verify every panel,
+the standalone asset and the final compiled page.
 
 ### Bibliography
 
@@ -184,5 +209,12 @@ reviewable and prevents quiet drift from the source.
 
 A finished handoff should include the editable project, generated PDF when the
 toolchain permits, build instructions already present in the project, the
-project glossary, and a concise unresolved-issues list. Do not claim a complete
-PDF comparison when only source text or compilation logs were checked.
+project glossary, and a concise unresolved-issues list. Reconcile the finding
+ledger against actual edits, then verify the final PDF rather than an older
+build. For internal references, check both the printed source-style number
+(including its Roman chapter prefix) and the semantic destination: the target
+heading/item and page coordinate, not just that a named anchor exists. Check
+every new or changed link, sample unchanged links by reference pattern, and
+investigate all detected anchor collisions or page mismatches. Do not claim a
+complete PDF comparison when only source text or
+compilation logs were checked.

@@ -26,6 +26,7 @@ can never drift. Dry-run by default; pass --go to write files.
 """
 import re
 import sys
+from audit_bare_references import mask_tex
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -57,31 +58,86 @@ JIANP = re.compile(r'\(\s*(见|参见|参看)\s*(' + NUM + r')([a-z]?)\s*\)')
 JIANB = re.compile(r'(?<![\\(（])(见|参见|参看)\s*(' + NUM + r')([a-z]?)')
 
 
+def aux_group(text, start):
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] in '{}':
+            n = 0; j = i - 1
+            while j >= 0 and text[j] == '\\': n += 1; j -= 1
+            if n % 2: continue
+            depth += 1 if text[i] == '{' else -1
+            if depth == 0: return text[start+1:i], i+1
+    raise ValueError('Unbalanced AUX group')
+
+
 def build_by_chap(aux_text):
-    """label -> chapter/item, keyed by chapter prefix taken from the label itself."""
+    """Read PRINTED field 1; retain all candidates instead of overwriting collisions.
+
+    Legacy chapter naming is configurable via CHAP_OF and label ownership in FILES.
+    aux_text must include child AUX contents, not just the main file.
+    """
+    ownership = {}
+    from pathlib import Path
+    for fn in FILES:
+        source = Path(BASE) / fn
+        if source.exists():
+            for lab in re.findall(r'\\label\{([^{}]+)\}', source.read_text(encoding='utf-8')):
+                ownership[lab] = CHAP_OF[fn]
     by_chap = {}
-    for lab, num, page in re.findall(
-            r'\\newlabel\{([^}]+)\}\{\{([^}]*)\}\{([^}]*)\}', aux_text):
-        if lab.endswith('@cref'):
-            continue
-        m = re.match(r'^([A-Za-z]+):(.+)$', lab)
-        if not m:
-            continue
-        rest = m.group(2)
-        pm = re.match(r'^(viii|vii|vi|v|iv|iii|ii)\.(.+)$', rest)
-        ch, item = (pm.group(1), pm.group(2)) if pm else ('i', rest)
-        by_chap.setdefault(ch, {})[item] = lab
+    for m in re.finditer(r'\\newlabel\{([^{}]+)\}\{', aux_text):
+        lab = m[1]
+        if lab.endswith('@cref'): continue
+        body, _ = aux_group(aux_text, m.end()-1)
+        if not body.startswith('{'): continue
+        num, _ = aux_group(body, 0)
+        num = num.replace('{','').replace('}','').strip()
+        lm = re.match(r'^([A-Za-z]+):(.+)$', lab)
+        if not lm or lm[1] in {'eq','sec','ch','chapter','pg'}: continue
+        pm = re.match(r'^(viii|vii|vi|v|iv|iii|ii)\.(.+)$', lm[2])
+        ch = ownership.get(lab, pm[1] if pm else 'i')
+        bucket = by_chap.setdefault(ch, {}).setdefault(num, [])
+        if lab not in bucket: bucket.append(lab)
     return by_chap
+
+
+def read_aux_tree(path, seen=None):
+    from pathlib import Path
+    path = Path(path).resolve(); seen = seen if seen is not None else set()
+    if path in seen: return ''
+    seen.add(path); text = path.read_text(encoding='utf-8', errors='replace')
+    chunks = [text]
+    for child in re.findall(r'\\@input\{([^{}]+\.aux)\}', text):
+        chunks.append(read_aux_tree(path.parent / child, seen))
+    return '\n'.join(chunks)
+
+
+def prose_sub(pattern, callback, text):
+    """Match only unprotected prose; math refs require a reviewed EXACT edit.
+
+    Inventory still scans math. This prevents accidental automatic changes to
+    external citation locators, existing link text, code, drawings, and math values.
+    """
+    masked = mask_tex(text)
+    chars = list(masked)
+    for m in re.finditer(r'\\begin\{(tikzpicture|equation\*?|align\*?|gather\*?)\}.*?\\end\{\1\}|\\\[.*?\\\]|(?<!\\)\$\$.*?(?<!\\)\$\$|(?<!\\)\$(?!\$).*?(?<!\\)\$', masked, re.S):
+        for i in range(m.start(), m.end()):
+            if chars[i] not in '\r\n': chars[i] = ' '
+    edits = [(m.start(), m.end(), callback(m)) for m in pattern.finditer(''.join(chars))]
+    for a,b,new in reversed(edits): text = text[:a] + new + text[b:]
+    return text
 
 
 def main():
     go = '--go' in sys.argv
-    by_chap = build_by_chap(open(BASE + '/main.aux', encoding='utf-8', errors='replace').read())
+    by_chap = build_by_chap(read_aux_tree(BASE + '/main.aux'))
 
     def resolve(fn, n, suf=''):
-        lab = by_chap.get(CHAP_OF[fn], {}).get(n)
+        candidates = by_chap.get(CHAP_OF[fn], {}).get(n, [])
+        lab = candidates[0] if len(candidates) == 1 else None
         if lab:
             return '\\ref{%s}%s' % (lab, suf)
+        if len(candidates) > 1:
+            return None  # ambiguous labels require contextual review
         h = HAND.get(fn, {}).get(n)
         if h:
             return '\\hyperlink{%s}{%s}%s' % (h, n, suf)
@@ -122,18 +178,19 @@ def main():
 
     out_files = {}
     for fn in FILES:
-        text = open(BASE + '/' + fn, encoding='utf-8', newline='').read()
+        with open(BASE + '/' + fn, encoding='utf-8', newline='') as source:
+            text = source.read()
         for old, new, cnt in EXACT.get(fn, []):
             c = text.count(old)
             if c != cnt:
                 report.append('!! %s EXACT count %d (want %d): %r' % (fn, c, cnt, old))
             else:
                 changelog.append((fn, 'exact', old, new))
-            text = text.replace(old, new)
-        text = MULTI.sub(lambda m: multi(fn, m), text)
-        text = JIANP.sub(lambda m: jian(fn, m, True), text)
-        text = JIANB.sub(lambda m: jian(fn, m, False), text)
-        text = SINGLE.sub(lambda m: single(fn, m), text)
+                text = text.replace(old, new)
+        text = prose_sub(MULTI, lambda m: multi(fn, m), text)
+        text = prose_sub(JIANP, lambda m: jian(fn, m, True), text)
+        text = prose_sub(JIANB, lambda m: jian(fn, m, False), text)
+        text = prose_sub(SINGLE, lambda m: single(fn, m), text)
         out_files[fn] = text
 
     lines = list(report) + ['===== CHANGES =====']
@@ -149,8 +206,11 @@ def main():
     print('\nchanges:', len(changelog), ' unresolved:', len(unresolved), ' warnings:', len(report))
 
     if go:
+        if report:
+            raise SystemExit('EXACT counts failed; no files were written. Review the configuration.')
         for fn in FILES:
-            open(BASE + '/' + fn, 'w', encoding='utf-8', newline='').write(out_files[fn])
+            with open(BASE + '/' + fn, 'w', encoding='utf-8', newline='') as destination:
+                destination.write(out_files[fn])
         print('*** WROTE', len(FILES), 'files ***')
     else:
         print('(dry run; pass --go to write)')

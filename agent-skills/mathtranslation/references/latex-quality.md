@@ -177,6 +177,51 @@ Do not substitute a screenshot, OCR image, Mermaid diagram, or generic table
 for a diagram that `tikz-cd` can express. Use ordinary TikZ or a source image
 only when `tikz-cd` would lose essential geometry or visual meaning.
 
+### Figure Typesetting, Sizing, And Layout Discipline
+
+1. **Floating Environment and Centering**:
+   - Always wrap figures in standard floats:
+     ```latex
+     \begin{figure}[htbp]
+       \centering
+       \includegraphics[width=0.60\textwidth]{images/fig/fig-X-Y.png}
+       \caption{图题说明文字.}\label{fig:X-Y}
+     \end{figure}
+     ```
+   - **Never use `\begin{center} ... \end{center}` inside `figure`**: it introduces unwanted top and bottom vertical whitespace that disrupts document rhythm. Always declare `\centering`.
+
+2. **Proportional Sizing Hierarchy**:
+   - **Never use hard-coded physical units** (`width=8cm`, `height=120pt`). Always use fractional `\textwidth` or `\linewidth`.
+   - **Compact / Detail / Coordinate System**: `width=0.40\textwidth` ~ `0.48\textwidth`.
+   - **Standard Geometric / Manifold / Single-step derivation**: `width=0.55\textwidth` ~ `0.65\textwidth`.
+   - **Composite Multi-panel / Global comparison diagram**: `width=0.72\textwidth` ~ `0.80\textwidth`.
+   - Always omit explicit `height` parameters so the image preserves its natural aspect ratio.
+
+3. **Captions and Cross-References**:
+   - **Strict Sequence**: `\caption{...}\label{fig:...}`. Placing `\label` before `\caption` causes `\ref` to bind to the outer section counter instead of the figure counter.
+   - **No Manual Numbering**: Never type `\caption{图 3.1: ...}` or `\caption{Figure 3.1: ...}`. LaTeX automatically inserts the numbering prefix; manual additions result in corrupted duplicates like `图 3.1 图 3.1: ...`.
+   - **Prose Referencing**: Reference all figures dynamically via `图~\ref{fig:X-Y}` or `(见图~\ref{fig:X-Y})`. Never hard-code plain text numbers.
+
+4. **Handling Text-Wrapped Figures (The `wrapfigure` Dilemma in Chinese Retypesetting)**:
+   - *The Danger*: In original English textbooks, small diagrams are often embedded alongside text using text-wrapping. In Chinese LaTeX (xeCJK / ctexbook), `wrapfigure` triggers catastrophic layout defects:
+     * Hard clash with display math: display math (`\[ \]`, `align`, `gather`) inside or adjacent to `wrapfigure` produces line overlaps or crashes paragraph wrapping.
+     * CJK hyphenation breakdown: `\parshape` forces unnatural word spacing and massive `Underfull \hbox` in Chinese paragraphs.
+     * Indent pollution: wrapping leaks into theorem, proof, and enumerate environments.
+   - *The Rule (Option A Standard)*: **Upgrade all text-wrapped figures to standalone centered floating figures** (`\begin{figure}[htbp] \centering ... \end{figure}`) with standard widths (`0.45\textwidth` ~ `0.62\textwidth`). This guarantees clean, uncompromised typography and natural mathematical reading flow.
+   - *Alternative for Tight Coupling (Option B)*: If a figure must appear directly alongside a short deduction or table, use a non-floating side-by-side `minipage` grid with `\captionof{figure}{...}` instead of `wrapfigure`:
+     ```latex
+     \noindent
+     \begin{minipage}[c]{0.48\textwidth}
+       \centering
+       \includegraphics[width=\linewidth]{images/fig/fig-X-Y.png}
+       \captionof{figure}{示意图说明.}\label{fig:X-Y}
+     \end{minipage}\hfill
+     \begin{minipage}[c]{0.48\textwidth}
+       推导文字与伴随公式...
+     \end{minipage}
+     \vspace{1em}
+     ```
+
 ## Proof Environments And Semantic Boundaries
 
 - **Proof Nesting Prohibition**: When proving a theorem whose proof contains the self-contained proof of an auxiliary lemma, **never nest standard `\begin{proof} ... \end{proof}` blocks**.

@@ -80,6 +80,18 @@ description: Translate mathematical books, papers, notes, and existing LaTeX pro
 - Read [references/workflow.md](references/workflow.md) when starting a new
   translation, importing a long source, or deciding how to stage the work.
 
+## Independent translation and review
+
+For substantial translation or independent review, read
+[references/independent-review.md](references/independent-review.md).
+Use separate translator and reviewer subagents with fresh contexts when available
+(for example `fork_turns="none"`); do not pass translator reasoning or self-review
+to the reviewer. The reviewer inventories the source before opening the frozen
+translation. Give workers disjoint output paths; the coordinator owns shared
+glossary, labels, integration and final builds. Without clean-context tools,
+report staged self-review rather than claiming independent review.
+Preserve necessary mathematical dependencies in each handoff.
+
 ## Translate
 
 - Translate mathematical meaning rather than sentence shape. Use natural,
@@ -95,12 +107,66 @@ description: Translate mathematical books, papers, notes, and existing LaTeX pro
   with the `tikz-cd` package and `tikzcd` environment. Do not replace them with
   screenshots or raster images. Preserve every node, label, arrow direction,
   arrow style, and commutative relationship from the source.
-- Handle ordinary figures by priority: when the source PDF is a clean vector
-  PDF, re-render the figure region at 400 DPI with `pymupdf` and autocrop it as
-  the preferred asset (perfect clarity, no raster blur); redraw simple figures
-  with ordinary TikZ; keep `tikzcd` for arrow-and-node diagrams. For crooched
-  crops feed a hand-verified `bbox` through an override table. Record any
-  exception.
+- Before drawing or independently reviewing diagrams, read
+  [references/diagram-practice.md](references/diagram-practice.md) for source-first
+  edge specifications and calibration cases. These are practice/regression tasks,
+  not model weight training. Never transfer a calibration answer to an unseen figure.
+- For diagram creation or review, when installed, follow the full
+  [diagram audit skill](../latex-array-diagram-audit/SKILL.md), including its
+  [no-vision verification procedure](../latex-array-diagram-audit/references/no-vision-verification.md).
+  If that skill or its script is unavailable, use the local diagram-practice
+  procedure and manually inventory the actual build chain; report the method
+  and limitations rather than skipping the check or inventing a script path.
+  When available, inventory every source in the actual build chain with
+  the diagram-audit skill's `scripts/inventory_diagrams.py`; include `array/aligned/matrix/CD/xymatrix`,
+  custom macros, footnotes and appendices as well as `tikzcd`. Classify each
+  candidate as a diagram, formula/table, macro to expand, or unresolved; an
+  environment name or candidate count alone is not proof that it was reviewed.
+  Prefer `tikzcd` for arrow-and-node diagrams, but do not mechanically rewrite
+  formula matrices or ordinary tables. Establish source and translation node grids
+  and edge lists independently. For each edge verify geometric source/target,
+  arrowhead end, injection-hook end, double head/equal/no-head style, label side,
+  empty nodes/zero rows, and local plus global style overrides. `r/l/u/d` describe
+  position, not mathematical direction; `hook'` changes hook side, not edge
+  direction. A `\hookrightarrow` glyph in a label or a `hook` option later
+  overridden by `rightarrow` does not render an injection hook.
+  If image display fails, first check the image path and viewer once; a tool error
+  does not establish that the model lacks vision. Then use source-grid/edge-list
+  analysis and PDF text/vector evidence, report structural, geometric and direct
+  visual checks separately, and leave unresolved details explicitly unverified.
+  Never certify visual fidelity from compilation or OCR text alone.
+- For ordinary mathematical illustrations, read
+  [references/illustrations.md](references/illustrations.md) before choosing assets
+  or doing a book-wide repair. Diagnose identity, mathematical completeness,
+  crop, representation, label readability, and final-page placement separately.
+  Build independent source and compiled-translation inventories and a per-figure
+  ledger; equal counts do not establish correct correspondence.
+- For concrete PDF screenshot/crop operations and TikZ redraws, read
+  [references/figure-capture.md](references/figure-capture.md). Use
+  `scripts/capture_pdf_region.py` to export a physical page or reviewed bounding
+  box as PDF + PNG + provenance. Open the images with an available image viewer;
+  a generated file alone is not visual evidence. Keep export and review statuses separate.
+- Preserve clean source vectors as cropped PDF when faithful reuse is suitable;
+  use native TikZ/PGFPlots for redraws and editable translated labels. A 400-DPI
+  PNG is rasterized, not lossless vector preservation. Never replace a sound
+  vector asset with a raster screenshot merely to standardize the pipeline.
+  Use actual-size readability and mathematical fidelity to choose between reuse,
+  redraw and panel reflow; a format change alone is not a finished repair.
+- Follow strict figure typesetting and sizing discipline:
+  * Structure: use standard floating environment `\begin{figure}[htbp] \centering ... \caption{...}\label{fig:...} \end{figure}`. Never substitute `\begin{center}` for `\centering` (avoids extraneous vertical margins).
+  * Sizing: prefer width relative to `\linewidth`, measured in the actual container.
+    Choose it from final label size, aspect ratio and available page height;
+    do not impose a universal 0.40–0.80 range or derive it solely from the original
+    figure-to-column ratio. Preserve aspect ratio; when width and height are
+    both upper bounds, use `keepaspectratio`. Source coordinates in PDF points
+    and native TikZ geometry may use physical units.
+  * Multi-panel figures: count and verify every panel and its labels. Enlarge or
+    reflow independent panels when labels become too small; retain order, shared
+    scales, connecting arrows and mathematical relationships. Verify the result
+    both as a standalone graphic and on its final book page.
+  * Order: always place `\caption{...}` before `\label{fig:...}`, never reversed.
+  * Captions: never type manual numbering prefixes inside `\caption` (e.g. no `\caption{图 3.1: ...}`); let LaTeX generate counters automatically. In prose, reference figures with `图~\ref{fig:X-Y}` or `(见图~\ref{fig:X-Y})`.
+  * Text-wrapped figures (wrapfigure): In Chinese mathematical books (xeCJK), text-wrapping around figures breaks on display formulas (`\[ \]`, `align`), creates severe font stretching/overfull hbox, and destroys theorem indents. Strictly adopt **Option A (Promote to standalone centered figures)**: upgrade all wrapped figures from the original book to standard centered `\begin{figure}[htbp]` environments (`0.45\textwidth` to `0.65\textwidth`), preserving clean vertical derivation flow. If horizontal compactness is required, use side-by-side `minipage` grids (`\captionof{figure}`) rather than `wrapfigure`.
 - Typeset display formulas uniformly in `align`, `aligned`, or `align*`
   environments. Never place multiple `\[ \]` blocks side by side; merge them
   into a single environment.
@@ -167,8 +233,14 @@ technique, and the cross-chapter Roman-numeral variants — lives in
 
 Key rules:
 
-- **Convert only when there is a UNIQUE candidate label** satisfying same
-  file + exact printed number (from `main.aux` `\newlabel`) + matching env type.
+- For a full/final translation review, read the completeness procedure in
+  [references/hardref-completeness.md](references/hardref-completeness.md). Run
+  `scripts/audit_bare_references.py` over every compiled source, classify every
+  remaining candidate, and verify new PDF links against their intended anchors.
+  Scan bare `(15)` as well as decimals, lists, Roman chapter/section refs, and pages.
+  Do not equate a clean compile or an increase in link count with completeness.
+- **Convert only when there is a UNIQUE candidate label** satisfying the correct
+  chapter/appendix scope + exact printed number (from AUX field 1) + matching object type.
   Derive the number→label map from `main.aux`, never hand-write it.
 - For `mathtranslation.cls` (wraps ctexart): theorem counter is "subsection.theorem",
   shared across `\input` files — simulate the full chapter chain, never a single file.
@@ -181,7 +253,7 @@ Key rules:
   bold/emph visual).
 - Run `scripts/convert_hardrefs.py` (mathtranslation.cls, dry-run + `--apply`) and
   `scripts/convert_bare_refs.py` (book classes, dry-run + `--go`). Recompile twice;
-  `0 Undefined reference` proves every converted label resolves.
+  `0 Undefined reference` proves resolution only; it proves neither coverage nor the correct target.
 - Index / List-of-Symbols page numbers: wrap with `\hyperpage{<P>}`. Fix the cover
   `page.1` collision by wrapping the cover in
   `\hypersetup{pageanchor=false}` … `\hypersetup{pageanchor=true}`.
@@ -207,6 +279,16 @@ list); override `\printterminology` to a starred chapter when there is no
 ## Verify (translation-level)
 
 Verification is part of the translation, not an optional final polish.
+
+For a book-length translation, a request for 逐句/逐图审阅, or a review that has
+already missed substantial defects, follow the
+[evidence-driven full-review procedure](references/forensic-review.md) and
+[review checklist](references/review-checklist.md). A successful build,
+plausible page count, checklist tick, or list of findings does not establish
+source-to-translation coverage. Do not call a chapter fully reviewed without
+independent source and translation inventories, unit-level correspondence,
+and a recorded challenge pass; distinguish review, repair and final-PDF
+validation in the report.
 
 1. Compile early and repeatedly with the project's actual build command
    (`bash tools/build.sh full` for the `mathtranslation.cls` workflow: xelatex
@@ -238,7 +320,13 @@ Summarize:
 
 ## Bundled resources
 
+- `references/independent-review.md` — clean-context roles, handoffs and repair closure.
+- `references/diagram-practice.md` — edge specifications and diagram calibration cases.
+- `references/figure-capture.md` — executable PDF crop and TikZ redraw procedure.
+- `scripts/capture_pdf_region.py` — PDF/PNG region export with source provenance.
 - `references/workflow.md` — new-translation staging workflow.
+- `references/forensic-review.md` — evidence standard for complete, sentence-
+  and diagram-level review of an existing translation.
 - `references/latex-quality.md` — TeX editing / OCR / reference-repair quality rules.
 - `references/mathtranslations-template.md` — `mathtranslation.cls` v3.x template guide.
 - `references/review-checklist.md` — pre-completion review checklist.

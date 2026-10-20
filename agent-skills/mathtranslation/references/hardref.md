@@ -46,7 +46,7 @@ script-driven pass instead of error-prone manual editing.
 Convert a hard-coded reference to a command **only when there is a UNIQUE candidate** label
 satisfying ALL of:
 
-- **Same file** (or, for the appended paper, anywhere in `partgf1`+`partgf2`),
+- **Correct chapter/appendix scope** from the actual include chain and explicit cross-chapter context (file boundaries alone do not define numbering scope),
 - **Exact printed number** (read from `main.aux` `\newlabel{X}{{PRINTED}...}`),
 - **Matching environment type** — `定理`→`theorem`, `命题`→`proposition`, `引理`→`lemma`,
   `推论`→`corollary`, `定义`→`definition`, `注`→`remark`, `例`→`example`, `问题`→`problem`;
@@ -72,15 +72,14 @@ resolves. Visually the rendered text is unchanged (e.g. `命题 1.6` → `\propr
 
 - **Illustrative meta-text** inside the translator's note (e.g. `main.tex` "如``定理 3.4''") —
   intentionally literal, leave as-is.
-- **`章第 X.Y`** section references — no label exists; leave.
-- **Original book's 3-level numbering** such as `定理 1.3.2` — the translation uses 2-level
-  "subsection.theorem"; leave.
-- **Appendix single-number theorems** like `定理 13` — different numbering scheme; leave.
+- **`章第 X.Y`** section references — locate the heading and add a correct anchor/label when it is an internal reference; do not leave it unlinked merely because a label is absent.
+- **Original book's 3-level numbering** such as `定理 1.3.2` — compare the actual source and translation numbering models and resolve manually when they differ; do not permanently leave a real reference unlinked.
+- **Appendix single-number theorems** like `定理 13` — resolve in the appendix number space; a different scheme requires explicit mapping, not permanent omission.
 - **References to unlabeled statements** (the target theorem has no `\label`). These need a
-  human to (a) add `\label{...}` right after the target `\begin{env}`, then (b) re-run the
+  targeted work to (a) add `\label{...}` right after the target `\begin{env}`, then (b) re-run the
   converter. When locating the target, simulate the full chapter chain; watch for **env-type
   mismatches** where the prose says `定理` but the statement is actually a `proposition` — that is
-  an editorial discrepancy requiring a human decision (preserve the original word with `\thmref`
+  an editorial discrepancy requiring a contextual decision (preserve the original word with `\thmref`
   to avoid changing the translated text, or fix the environment).
 
 ## Limitations / known false-positives
@@ -116,8 +115,10 @@ Counter/label model (non-obvious):
   `exc:`/`ex:` and can collide in printed number with theorems → always resolve by (chapter, number)
   from `main.aux`, never by guessing the type.
 - Equations are NOT auto-numbered (`equation*` + hard `\tag`). So `(N.M)` in the running text is
-  almost always a *theorem-counter* item, NOT an equation. Continuous formula refs `(5)`…`(44)`
-  (single integer in parens) must be LEFT ALONE — they are `\tag`s, self-consistent.
+  almost always a *theorem-counter* item, NOT an equation. A defining `\tag{15}` must stay unchanged, but a running-text reference `(15)`
+  must become `\eqref{<verified-equation-label>}`. A manual tag does NOT make its
+  prose references clickable. Determine equation scope from the actual project;
+  do not assume tags are globally unique or treat every `(N)` as an equation reference.
 
 **Derive the number→label map from `main.aux`, never hand-write it.** Parse
 `\newlabel{lab}{{PRINTED}{PAGE}...}`, split the label into `type:` + `chap.item`, bucket by
