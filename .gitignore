@@ -1,0 +1,31 @@
+# ---- LaTeX build artifacts ----
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+*.nav
+*.snm
+*.lof
+*.lot
+*.idx
+*.ilg
+*.ind
+*.gz
+
+# ---- MATLAB ----
+*.asv
+*.m~
+
+# ---- Python ----
+__pycache__/
+*.pyc
+
+# ---- OS / misc ----
+*.zip
+.DS_Store
+Thumbs.db

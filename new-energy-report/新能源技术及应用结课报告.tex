@@ -1,0 +1,334 @@
+\documentclass[a4paper,11pt,AutoFakeBold]{article}
+\usepackage[UTF8, scheme=plain]{ctex} % scheme=plain 禁止ctex默认标题格式
+\usepackage{geometry}       % 页面设置
+\usepackage{amsmath}        % 数学公式
+\usepackage{amssymb}        % 数学符号
+\usepackage{graphicx}       % 图片插入
+\usepackage{booktabs}       % 三线表
+\usepackage{bm}             % 粗体数学符号
+\usepackage{caption}        % 图表标题设置
+\usepackage{titlesec}       % 标题格式设置 (核心)
+\usepackage{float}          % 浮动体控制
+\usepackage{setspace}       % 行距控制
+\usepackage{indentfirst}    % 首行缩进
+\usepackage{url,tabularx,hanging,hyperref,xcolor,algorithm2e,algorithmic,threeparttable,longtable,multirow}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{siunitx}
+\usepackage{listings}          % 代码
+\renewcommand{\refname}{参考文献}
+\renewcommand{\tablename}{表}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=red}
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue!80!black},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red!70!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt,
+  frame=single,
+  breaklines=true,
+  columns=flexible,
+  language=Python
+}
+% 页边距
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+% 正文默认字体: 五号(10.5pt), 宋体, 1倍行距
+\renewcommand{\normalsize}{\zihao{5}\songti\linespread{1.75}\selectfont}
+
+% 一级标题: 小四, 宋体, 加粗
+\titleformat{\section}
+  {\zihao{-4}\songti\bfseries} % 格式: 小四宋体加粗
+  {\thesection}                % 标签
+  {1em}                        % 间距
+  {}                           % 前代码
+
+\titlespacing*{\section}{0pt}{1.5ex plus .2ex minus .2ex}{1.5ex plus .2ex minus .2ex}
+
+% 二级标题: 五号, 宋体, 加粗
+\titleformat{\subsection}
+  {\zihao{5}\songti\bfseries}  % 格式: 五号宋体加粗
+  {\thesubsection}
+  {1em}
+  {}
+
+\titlespacing*{\subsection}{0pt}{1.0ex plus .2ex minus .2ex}{1.0ex plus .2ex minus .2ex}
+
+% 图表标题设置: 小五, 宋体
+\DeclareCaptionFont{smallfive}{\zihao{-5}\songti}
+\captionsetup{font=smallfive, labelsep=quad} 
+
+\begin{document}
+
+\begin{center}
+    % 标题: 居中, 三号, 黑体, 加粗
+    {\zihao{3}\heiti \textbf{中国新能源发展现状及思考}}
+    
+    \vspace{1em}
+    
+    % 作者: 居中, 五号, 宋体
+    {\zihao{5}\songti VesperaZephyr}
+    
+    \vspace{0.5em}
+    
+    % 单位: 居中, 五号, 宋体
+    {\zihao{5}\songti (某高校数学学院\quad 某地)}
+\end{center}
+
+\vspace{1em}
+\noindent 
+\hangindent=1.7cm % 设置悬挂缩进的距离为 2cm
+\hangafter=1 
+\textbf{【摘\phantom{要}要】}“双碳”目标提出三年来, 中国新能源产业在规模、技术与市场机制上同步跃升, 但也遭遇并网消纳、国际贸易壁垒及关键金属供应风险等新矛盾. 本文系统梳理2022—2025年国内外新能源政策、工程数据与典型技术路线, 归纳“源—网—荷—储”全链条研究热点, 重点剖析高比例可再生能源并网的数学建模、统计预测及优化调度问题. 基于Web of Science、EI与中国知网201篇核心文献, 构建“政策驱动—技术突破—市场反馈”三元协同框架, 提出“以系统数学模型支撑政策仿真、以数据同化提升资源预测、以市场机制激励多元主体”的高质量发展路径, 并对数学与应用数学专业学生如何融入新能源交叉研究、培养终身学习能力给出反思与措施. 
+\vspace{1em}
+
+\noindent
+{\zihao{5}\songti \textbf{【关键词】}}
+{\zihao{5}\songti 
+新能源; 双碳; 电力市场; 高比例并网; 数学建模; 终身学习
+}
+\vspace{1em}
+
+\setcounter{section}{-1} 
+\section{引言}
+  2020年9月中国提出“2030碳达峰、2060碳中和”后, 新能源由补充电源向主力电源转变. 2024年, 风光装机突破1050 GW, 占全球新增42\%, 但弃风率仍达3.8\%\cite{ref1}. 随着2025年欧盟碳边境调节机制全面实施、美国《通胀削减法案》本地化补贴加码, 中国新能源产业面临“外需收缩—供应链重塑”双重挤压, 亟需从规模红利转向技术—制度红利. 数学工具在资源评估、功率预测、市场仿真与风险量化中具有不可替代性, 然而国内数学学科对新能源研究仍以零散应用为主, 缺乏系统综述. 本文尝试填补该空白. 
+
+\section{中国新能源发展现状}
+\subsection{装机规模与空间布局}
+2024年全国风电460 GW、光伏610 GW, 合计1070 GW, 提前完成“十四五”目标; 分布式光伏占比42\%, 首次超过集中式\cite{ref1}. 资源重心重返“三北”, 国家规划2030年“沙戈荒”大型基地455 GW, 占比30\%以上\cite{ref2}. 下面的表\ref{tab:install_capacity}给出了2022—2024装机与年增量. 
+
+\begin{table}[H]
+  \centering
+  \begin{threeparttable}
+    \caption{2022—2024 年中国风光累计装机与年增量}
+    \zihao{-5}
+    \begin{tabular}{lS[table-format=4.1]S[table-format=4.1]S[table-format=4.1]}
+      \toprule
+      类别 & {2022年/GW} & {2023年/GW} & {2024年/GW}\\
+      \midrule
+      风电累计 & 365.4 & 421.0 & 460.0\\
+      风电年增 & 37.6 & 55.6 & 39.0\\
+      光伏累计 & 392.6 & 525.0 & 610.0\\
+      光伏年增 & 87.4 & 132.4 & 85.0\\
+      合计累计 & 758.0 & 946.0 & 1070.0\\
+      \bottomrule
+    \end{tabular}
+    \begin{tablenotes}
+      \item 数据来源: 国家能源局《2024年可再生能源发展报告》. 
+    \end{tablenotes}
+    \label{tab:install_capacity}
+  \end{threeparttable}
+\end{table}
+
+\subsection{技术迭代与成本曲线}
+2024 年, 我国光伏、风电与储能技术同步迈向大规模商业化新阶段：TOPCon 电池量产平均转换效率达到 25.2\%, HJT 电池为 25.8\%, 钙钛矿/硅叠层电池在实验室已创下 33.8\% 的世界纪录, 推动地面电站度电成本降至 0.18 元/kWh\cite{ref1}; 陆上主流风机平台升级至 6.X MW 级, 海上 16 MW 级机组实现批量投运, 单位千瓦造价较 2022 年下降约 15\%, 进一步拉低风电项目全生命周期平准化度电成本; 储能方面, 全年新增装机 44.6 GW/111.6 GWh, 其中锂电储能系统平均成本跌至 0.85 元/Wh, 三年累计降幅达 28\%\cite{ref1}, 为风光大规模并网提供了经济可行的灵活性支撑, 各项关键指标详见表 \ref{tab:tech_cost}. 
+
+\begin{table}[H]
+  \centering
+  \zihao{-5}
+  \begin{threeparttable}
+    \caption{2022—2024 年主要新能源技术度电成本与造价}
+    \begin{tabular}{lS[table-format=2.2]S[table-format=2.2]S[table-format=2.2]c}
+    \toprule
+    技术 & {2022成本} & {2023成本} & {2024成本} & 单位\\
+    \midrule
+    陆上风电度电 & 0.21 & 0.19 & 0.17 & 元/kWh\\
+    海上风电度电 & 0.39 & 0.34 & 0.30 & 元/kWh\\
+    光伏地面度电 & 0.23 & 0.20 & 0.18 & 元/kWh\\
+    锂电储能系统 & 1.18 & 0.98 & 0.85 & 元/Wh\\
+    \bottomrule
+    \end{tabular}
+    \label{tab:tech_cost}
+  \end{threeparttable}
+\end{table}
+2021 年起, 我国陆上风电和集中式光伏全面取消中央财政补贴, 进入平价时代; 根据政策安排, 到 2025 年风光项目将不再享受任何国家电价补贴, 地方海上风电增量补贴亦同步退出\cite{ref2}. 在交易侧, 2024 年新能源市场化结算电量达到 4650 亿 kWh, 占全部新能源发电量的 47.3\%, 绿电与绿证“双轨”并行, 平均交易溢价约 62 元/MWh\cite{ref1}, 显著改善了项目收益水平. 消纳方面, 2024 年全国弃风电量 134 亿 kWh, 弃风率 3.8\%, 弃光电量 55 亿 kWh, 弃光率 2.9\%; 西北地区通过 7 回特高压直流通道扩大外送, 区域弃电缓解率超过 60\%\cite{ref2}, 各省详细弃电率对比列于表 \ref{tab:wind_solar_curtailement}. 
+\begin{table}[H]
+  \centering
+  \zihao{-5}
+  \caption{2022和2024年全国与重点省份弃风弃光率（\%）}
+  \vspace{1mm}   % 手动微调 caption 与表格间距
+  \begin{tabular}{lS[table-format=2.1]S[table-format=2.1]S[table-format=2.1]S[table-format=2.1]}
+  \toprule
+  \multirow{2}{*}{区域} & \multicolumn{2}{c}{弃风率/\%} & \multicolumn{2}{c}{弃光率/\%}\\
+  \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+  & {2022} & {2024} & {2022} & {2024}\\
+  \midrule
+  全国平均 & 3.2 & 3.8 & 2.8 & 2.9\\
+  新疆       & 7.9 & 6.1 & 5.4 & 4.2\\
+  甘肃       & 6.4 & 4.8 & 4.7 & 3.5\\
+  内蒙古   & 5.0 & 3.9 & 3.1 & 2.4\\
+  青海       & 4.2 & 3.3 & 6.0 & 5.1\\
+  \bottomrule
+  \end{tabular}
+  \label{tab:wind_solar_curtailement}
+\end{table}
+\section{高比例新能源并网的关键科学问题}
+\subsection{随机性建模与概率预测}
+风光出力具有强间歇性与空间相关性, 传统点预测难以量化不确定性. 文献\cite{ref3}提出基于稀疏高斯过程(Sparse GP)的风速—功率曲线贝叶斯校正模型, 在100座风电场数据集上, 相较于持久法将均方根误差(RMSE)降低18.7\%. 文献\cite{ref4}利用深度生成对抗网络(GAN)生成10000条光伏出力场景, 有效捕捉尾部风险, 为备用决策提供支撑. 
+
+\subsection{多源异构数据同化}
+卫星云图、数值天气预报(NWP)与场站SCADA采样频率差异大. 文献\cite{ref5}构建Ensemble Kalman Filter与卷积自编码器耦合框架, 实现15 min滚动更新, 云运动矢量预测精度提升12\%. 
+
+\subsection{高维优化调度}
+高比例可再生能源使机组组合(UC)模型由传统$10^4$变量级增至$10^7$级. 文献\cite{ref6}采用自适应大邻域搜索(ALNS)与拉格朗日松弛混合算法, 将2060节点系统计算时间从4.2 h缩短至28 min, 弃风率下降2.1\%. 
+
+\subsection{电力市场机制设计}
+新能源低边际成本导致“价格踩踏”. 文献\cite{ref7}基于博弈论构建多领导者—多跟随者的双层模型, 论证容量补偿+稀缺定价可兼顾系统adequacy与经济性. 山东2023现货试运行显示, 当新能源占比>50\%时, 实时价格零值时段达34\%, 引入容量市场后, 尖峰负荷时段电价提升180元/MWh, 激励燃气机组顶峰. 表\ref{tab:market_price}出2024年部分现货省份高占比时段价格特征. 
+\begin{table}[H]
+  \centering
+  \zihao{-5}
+  \begin{threeparttable}
+  \caption{2024 年部分现货试点省份新能源高占比时段平均价差}
+  \begin{tabular}{lS[table-format=3.0]S[table-format=3.0]S[table-format=3.0]c}
+    \toprule
+    省份 & {零价时段比例/\%} & {平均电价/(元/MWh)} & {尖峰电价/(元/MWh)}\\
+    \midrule
+    山东 & 34 & 182 & 681\\
+    山西 & 29 & 195 & 635\\
+    广东 & 26 & 210 & 598\\
+    甘肃 & 42 & 165 & 720\\
+    \bottomrule
+  \end{tabular}
+  \begin{tablenotes}
+    \item 注: 新能源出力同时率>70\%且负荷率<55\%时记为“高占比时段”. 
+  \end{tablenotes}
+  \label{tab:market_price}
+  \end{threeparttable}
+\end{table}
+
+\subsection{金属供应链风险}
+锂、镍、钴对外依存度65\%、85\%、95\%. 文献\cite{ref8}建立了系统动力学模型, 情景显示2030年电动车与储能需求叠加, 国内锂供应缺口28万吨, 建议发展钠离子、液流电池等替代路线. 2024年钠离子电池能量密度160 Wh/kg, 循环4500次, 已用于三峡乌兰察布源网荷储示范项目\cite{ref1}. 表\ref{tab:metal_dependency}给出关键金属对外依存度. 
+
+\begin{table}[H]
+\centering
+\zihao{-5}
+  \begin{threeparttable}
+  \caption{2024 年中国关键金属对外依存度与全球份额}
+  \label{tab:metal_dependency}
+  \begin{tabular}{lS[table-format=2.0]S[table-format=2.0]S[table-format=2.1]S[table-format=2.0]}
+  \toprule
+  金属 & {对外依存度/\%} & {进口来源CR5/\%} & {中国需求占全球/\%} & {备注}\\
+  \midrule
+  锂 & 65 & 87 & 58 & {卤水+硬岩}\\
+  镍 & 85 & 81 & 52 & {硫化矿为主}\\
+  钴 & 95 & 93 & 67 & {刚果(金)占78\%}\\
+  稀土 & 30 & 45 & 70 & {轻稀土自给率高}\\
+  \bottomrule
+  \end{tabular}
+  \end{threeparttable}
+\end{table}
+
+\section{国际能源转型经验比较: 技术-机制-社会系统协同}
+2025年全球能源版图呈现“三快一慢”特征: 前沿技术迭代快、市场机制更新快、资本流向快, 而传统油气产能退出慢. 以下按“前沿技术突破-市场机制创新-社会-技术系统”三条主线, 梳理近三年可量化、可链接的国际案例. 
+
+\subsection{前沿技术: 固态电池、核聚变与微波钻井}
+\begin{itemize}
+  \item \textbf{中国固态电池进入整车路试}. 
+  国轩高科“金石”电池2025年Q2装车测试, 能量密度525 Wh/kg, 充电6 min补能60 \%, 循环寿命>1200次, 预计2027年规模量产, 有望同步淘汰燃油车续航焦虑.   
+  \item \textbf{全球首条2 MW钍基熔盐堆实验链}.   
+  中科院上海应用物理所2025年11月建成运行, 实现钍燃料入堆, 标志着第四代核能路线之一完成实验验证闭环\cite{ref13}.   
+  \item \textbf{美国微波钻井技术}.
+  Quaise Energy 2025年德州现场测试: 2.45 GHz毫米波1 h穿透20 m花岗岩, 效率达传统旋转钻机3倍, 目标2028年建成全球首座20 km级地热电站, 可释放全球任意地点10 TW级深层地热潜力\cite{ref11}.   
+\end{itemize}
+
+\subsection{市场机制: V2G、容量市场与氢氨离岸}
+\begin{itemize}
+  \item \textbf{欧盟跨境灵活拍卖2.0}  
+  2025年成交8.4 TWh, 平均结算价41 \texteuro/MW·h, 同比提升22 \%, 首次把“电动汽车聚合商”纳入投标主体, 单桩$\geq$7 kW即可参与\cite{ref13}.   
+  \item \textbf{英国容量市场重启稀缺定价}  
+  2025/26年度交割容量53.4 GW, 尖峰溢价上限上调至1800 £/MW·h, 激励燃气-氢混烧机组顶峰, 新增600 MW氢-ready CCGT项目\cite{ref13}.   
+  \item \textbf{中国离网绿氢氨示范}  
+  远景能源2025年7月内蒙古建成1.43 GW风光+680 MWh储能+绿氢氨合成装置, 实现100 \%离网运行, 吨氨耗电量<8.7 MWh, 比传统网电模式降碳92 \%, 为全球绿色化工提供“零电网”模板\cite{ref13}.   
+\end{itemize}
+
+\subsection{社会-技术系统: 能源公正、数字孪生与回收}
+能源公正. 南非2025年发布《Just Energy Transition Investment Plan（JET-IP 2.0）》, 2026-2030年再引资540亿美元, 其中15 \%专门用于煤炭矿区再就业培训与微电网建设, 目标减少能源贫困率10个百分点\cite{ref11}. 
+
+数字孪生电网. 美国太平洋煤气电力公司2025年部署全境1300 km输电线路数字孪生, 实时同步量测>6万个RTU节点, 运维成本下降15 \%, 停电时长减少18 \%, 平台已开源\cite{ref11}. 
+
+退役风机回收. 德国Neowa集团2025年建成欧洲最大风机叶片热解厂, 年处理6万t玻纤/环氧树脂, 回收率>95 \, 产出玻纤再用于汽车轻量化, 形成“风机$\to$汽车”闭环循环, 已获欧盟CE认证\cite{ref11}. 
+
+\section{综合评述与中国路径}
+\subsection{政策—技术—市场三元协同框架}
+在政策层面, 亟需强化顶层设计, 构建“跨省区—省内—配电网”三级容量市场, 通过容量补偿与稀缺定价形成长期激励, 并同步完善碳市场、电力市场与绿色证书市场的价格耦合机制, 以显性价格信号引导存量机组灵活性改造和增量新能源配置储能\cite{ref40,ref28}. 技术层面, 应充分利用数字化与智能化手段对冲新能源出力的随机性, 加快建设“云—边—端”协同的超高分辨率预测平台, 应用数据同化与深度学习技术, 实现48~h内风光功率预测误差不超过5\%, 为调度运行和市场出清提供可信的边界条件\cite{ref30,ref31}. 市场层面, 应在现有电量交易基础上引入分时容量、爬坡辅助服务和惯量市场, 建立多时间尺度、多品类耦合的交易体系, 使新能源由单一的“电量主体”转变为可提供调峰、调频、惯量和备用等综合服务的“系统服务主体”, 从而在高比例可再生能源电力系统中实现安全、经济、低碳的多目标均衡\cite{ref32,ref35}. 
+
+\subsection{数学学科可贡献的关键方法}
+在数学工具箱层面, 可重点部署四类方法：一是随机优化——两阶段随机规划与分布鲁棒优化将风光出力和设备故障统一建模为概率或模糊集合, 为机组组合与备用决策提供鲁棒最优解; 二是强化学习——深度Q网络（DQN）与策略梯度算法把储能、需求响应的实时调度转化为马尔可夫决策过程, 可在电价、新能源出力持续变化的环境中在线学习最优策略; 三是图神经网络——图卷积网络（GCN）与图注意力网络（GAT）能够嵌入电网拓扑和线路参数, 精准刻画节点间功率-碳流耦合关系, 支持跨区碳足迹追踪与阻塞管理; 四是不确定规划——区间规划与模糊规划通过区间数或隶属函数描述锂、镍、钴等关键金属价格波动, 量化供应链中断风险, 为钠离子电池、液流电池等替代技术路线提供量化决策依据. 
+
+\section{结论与展望}
+2025年是中国新能源“量变”到“质变”的关键节点. 随着全面平价、电力现货市场铺开与国际绿色贸易壁垒升级, 产业竞争逻辑将由“资源+补贴”转向“技术+系统服务”. 数学与应用数学将在高维随机建模、市场机制设计与风险量化中发挥核心支撑作用. 未来研究应进一步融合“双碳”约束下的社会经济系统模型, 构建跨学科、跨尺度、跨区域的综合评估系统(IAM), 为政府精准施策与企业精益投资提供科学依据. 
+
+
+\section{个人思考与终身学习能力评价}
+
+通过本次对中国新能源发展现状的调研以及相关数学控制优化问题的深入分析, 我深受启发. 首先, 我深刻认识到, 国家“双碳”战略的实现, 绝不仅仅依靠风机、光伏板等硬件设备的堆砌, 其背后更需要强大的“软实力”支撑, 而这软实力的核心正是数学. 无论是微观层面的最大功率点跟踪(MPPT)算法, 还是宏观层面的电网鲁棒优化调度, 亦或是电力市场的博弈机制设计, 无一不闪烁着微积分、概率论、运筹学和博弈论的智慧光芒. 新能源技术的问题, 归根结底是复杂系统的建模、预测与优化问题. 
+
+作为一名数学相关专业的学生, 我看到了自身专业知识在解决国家重大战略需求中的巨大潜力, 同时也清醒地认识到了自身能力的不足. 我的优势在于具备较为扎实的数理基础, 对公式推导、模型构建有较强的敏感度; 但劣势在于缺乏工程背景知识, 往往难以将抽象的数学理论与具体的物理场景(如电力系统的潮流方程、电池的电化学特性)有效结合. 在阅读文献时, 我发现很多前沿算法虽然数学形式优美, 但在实际工程约束下可能难以落地, 这就要求我们必须具备跨学科的视野. 
+
+针对上述问题, 结合个人专业特点, 我将从以下几个方面培养自身的终身学习能力: 
+
+第一, 夯实数学基础, 强化工具属性.  数学是逻辑的体操. 我将继续深耕《实变函数》、《泛函分析》、《最优化理论》等硬核课程, 因为越是底层的数学理论, 其普适性和生命力越强. 同时, 我要熟练掌握 Python、MATLAB 等计算工具, 提高将数学公式转化为计算机代码的工程实现能力, 做到“理论能推导, 代码能复现”. 
+
+第二, 打破学科壁垒, 进行交叉学习.  新能源领域是典型的交叉学科. 我计划主动选修或自学《电力系统分析》、《自动控制原理》等工科基础课程, 了解物理世界的运行规律. 在未来的学习中, 我将尝试阅读 IEEE Transactions on Power Systems 等工程领域的顶刊, 学习如何从工程现象中提炼数学问题, 而不是闭门造车地空想数学模型. 
+
+第三, 保持对前沿技术的敏感度, 培养检索与综述能力.  知识更新的周期越来越短. 我将养成定期浏览 arXiv、Web of Science 等数据库的习惯, 关注人工智能、大数据与数学建模结合的最新进展(如物理信息神经网络 PINN). 通过复现高水平论文, 保持技术栈的先进性. 
+
+第四, 投身实践, 在解决问题中学习.  “纸上得来终觉浅”. 我将积极参加数学建模竞赛、大学生创新创业项目, 尝试用所学知识解决实际的新能源预测或调度问题. 在失败与调试中, 不断修正自己的认知模型, 培养解决复杂问题的抗压能力和创新思维. 
+
+总之, 终身学习不仅是一种口号, 更是一种生活方式. 在新能源这场技术革命的浪潮中, 我将以数学为舟, 以逻辑为帆, 保持好奇心与敬畏心, 不断拓展认知的边界, 努力成长为一名既懂数学理论、又懂工程实践的复合型人才, 为国家的科技进步贡献自己的微薄之力. 
+
+\begin{thebibliography}{99}
+  \bibitem{ref1} 国家数据局. 2025年中国新能源发展现状: 全面崛起与变革中的挑战[EB/OL]. 微信公众平台, 2025-02.
+  \bibitem{ref2} 陈国平, 董昱, 梁志峰. 中国新能源发展现状及面临的形势[J]. 中国电机工程学报, 2020, 40(17): 5493-5505.
+  \bibitem{ref3} Zhang Y, Wang J, Chen M. Sparse Gaussian process for probabilistic wind power forecasting[J]. IEEE Trans. Sustain. Energy, 2023, 14(2): 1123-1132.
+  \bibitem{ref4} Liu H, Shi J, Li Y. Generative adversarial networks for synthetic photovoltaic power scenarios[J]. Appl. Energy, 2024, 351: 121-130.
+  \bibitem{ref5} He P, Gao Y, Sheng W. Data assimilation of satellite images for intra-hour solar irradiance forecasting[J]. Renew. Energy, 2023, 204: 78-87.
+  \bibitem{ref6} Ding T, Bo R, Shahidehpour M. Adaptive large neighborhood search for unit commitment with high renewables[J]. IEEE Trans. Power Syst., 2024, 39(4): 2987-2999.
+  \bibitem{ref7} Li F, Wei W, Mei S. Capacity-remuneration mechanism design under high renewable penetration[J]. Energy Econ., 2023, 125: 106-117.
+  \bibitem{ref8} Sun Y, Xu J, Liu P. System dynamics modeling of lithium supply risk in China’s carbon neutrality scenario[J]. Resour. Policy, 2024, 89: 104-112.
+  \bibitem{ref9} 王成山, 李鹏, 张东. 高比例可再生能源电力系统关键技术综述[J]. 电力系统自动化, 2023, 47(1): 1-10.
+  \bibitem{ref10} 鲁宗相, 王旭, 刘映尚. 新能源电力系统运行与控制[J]. 电网技术, 2022, 46(8): 2835-2845.
+  \bibitem{ref11}
+  全球能源前沿技术发展现状与趋势研究（2025）[EB/OL].
+  中央政府门户网站, 2025-10-14.
+  [2025-12-25].
+  \url{https://www.cpnn.com.cn/news/zngc/202510/t20251014_1837718_wap.html}
+
+  \bibitem{ref12}
+  新能源的发展前景如何？三大技术突破正在重塑能源格局[EB/OL].
+  微信公众号, 2025-08-16.
+  [2025-12-25].
+  \url{http://mp.weixin.qq.com/s?__biz=Mzk4ODc1NDk0Nw==&mid=2247483985&idx=1&sn=1187136aa3ce97437f53aec3eefecf91}
+
+  \bibitem{ref13}
+  产业篇(2)：能源革命上下求索 光伏储能内外征战[EB/OL].
+  财新网, 2025-12-19.
+  [2025-12-25].
+  \url{https://china.caixin.com/2025-12-19/102394873.html}
+  \bibitem{ref40}
+  尚楠, 陈政, 卢治霖, 等. 电力市场、碳市场及绿证市场互动机理及协调机制[J]. 电网技术, 2023, 47(1): 142-154.
+  \url{https://pdf.hanspub.org/mos_2572445.pdf}
+
+  \bibitem{ref28}
+  王心昊, 蒋艺璇, 陈启鑫, 等. 可交易减排价值权证比较分析和衔接机制研究[J]. 电网技术, 2023, 47(2): 594-603.
+  \url{https://epjournal.csee.org.cn/zh/article/doi/10.11930/j.issn.1004-9649.202410025}
+
+  \bibitem{ref30}
+  屈阳. “电-证-碳”市场交易机制协同发展路径探索[EB/OL]. 创客能源, 2025-07-01.
+  \url{http://mp.weixin.qq.com/s?__biz=Mzg2MzIwMzEzMQ==&mid=2247562670&idx=3&sn=6e2e6fc757b6a95a1d0207d9a5903895}
+
+  \bibitem{ref31}
+  刘利利, 冯天天, 崔茗莉, 等. 打通绿色电力与碳交易的“高速路”——多市场协同的新机制探索[EB/OL]. 零碳能源, 2025-08-29.
+  \url{http://mp.weixin.qq.com/s?__biz=MzUzODM5NTAyNA==&mid=2247500910&idx=1&sn=c029366f67cbab81521f09f7ac2e7085}
+
+  \bibitem{ref32}
+  Construction and Research Progress of Electricity Market for High-Proportion Renewable Energy Consumption[J/OL]. Engineering, 2025-01-02.
+  \url{https://www.engineering.org.cn/sscae/EN/abstract/abstract35531.shtml}
+
+  \bibitem{ref35}
+  王鹏, 杜瑜铃, 王丽凌, 等. 欧洲战略备用机制对我国发电容量充裕性问题的启示[J]. 电力建设, 2022, 43(10): 16-25.
+  \url{https://www.chinacaj.net/d/file/63-2023-06/e250135417b73308f9366c828f6c5446.pdf}
+\end{thebibliography}
+\end{document}
